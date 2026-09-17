@@ -4,7 +4,7 @@
 
 它是一个 [Zebar](https://github.com/glzr-io/zebar) 组件包，不是独立应用，也不是 Claude Code 插件。窗口、拖动、置顶、多显示器、托盘常驻、安装与更新都由 Zebar 负责；这个仓库里只有组件包本身。
 
-状态：主线已有一案一行、错误隔离、四档排序与展开，并通过 Windows 宿主验收；客户端依赖已随包提供。窗口控件、整机断网启动和最终交付验收仍待完成，见 GitHub Issues。
+状态：Windows 首版已通过人手验收，包括窗口控件、断网启动和新案自动发现；Python 3.9 全套测试通过。逐项证据见 [验收记录](docs/acceptance-windows.md)。mac 实机验收另进交付票。
 
 ## 它读什么
 

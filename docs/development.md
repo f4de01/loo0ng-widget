@@ -2,6 +2,8 @@
 
 实现规格是 [#2](https://github.com/f4de01/loo0ng-widget/issues/2)，母票是 [#1](https://github.com/f4de01/loo0ng-widget/issues/1)。原型分支只作资料，不合并。
 
+Windows 首版已通过 #8 最终验收，逐项证据、机器与版本、Python 3.9 跑法及现场恢复情况见 [Windows 验收记录](acceptance-windows.md)。下文保留各实现票当时的验证过程与后续补验。
+
 ## 包与扫描
 
 `widget/` 是组件包。`scan.py` 是唯一测试缝，完成一层发现、读取和聚合。只支持 Python 3.9 及以上和标准库，没有 Node、JS 测试跑器或类型检查器。
