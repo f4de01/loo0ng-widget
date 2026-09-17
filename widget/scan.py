@@ -46,8 +46,9 @@ def scan(roots, settings):
         root_path = Path(root).expanduser().absolute()
         try:
             children = list(root_path.iterdir())
-        except OSError:
-            errors.append({"目录名": root_path.name, "路径": str(root_path), "原因": "根目录读不出"})
+        except OSError as error:
+            reason = "根目录不存在" if isinstance(error, FileNotFoundError) else "根目录读不出，请检查路径和读取权限"
+            errors.append({"目录名": root_path.name, "路径": str(root_path), "原因": reason})
             continue
         for path in children:
             try:
@@ -56,12 +57,46 @@ def scan(roots, settings):
                 view = json.loads((path / "图视图.json").read_text(encoding="utf-8"))
                 rows.append(aggregate(path, view))
             except (OSError, ValueError, KeyError, TypeError) as error:
-                reason = str(error) if type(error) is ValueError else "机器可读视图读不出：" + type(error).__name__
+                if isinstance(error, json.JSONDecodeError):
+                    reason = "机器可读视图不是有效的 JSON"
+                elif isinstance(error, UnicodeError):
+                    reason = "机器可读视图不是有效的 UTF-8 文本"
+                elif isinstance(error, OSError):
+                    reason = "机器可读视图无法读取，请检查读取权限或文件是否被占用"
+                elif type(error) is ValueError:
+                    reason = str(error)
+                else:
+                    reason = "机器可读视图结构不完整或字段类型不正确"
                 errors.append({"目录名": path.name, "路径": str(path), "原因": reason})
     rows.sort(key=lambda row: row["目录名"])
     return {"扫描时间": datetime.now().astimezone().isoformat(timespec="seconds"),
             "设置文件": str(settings), "根目录": roots, "行": rows, "读不出": errors,
             "案件数": len(rows)}
+
+
+def read_settings(settings):
+    try:
+        value = json.loads(settings.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        category, instruction = "文件不存在", "设置文件不存在，请创建"
+    except (json.JSONDecodeError, UnicodeError):
+        category, instruction = "不是 JSON", "设置文件不是有效的 UTF-8 JSON，请修改"
+    except OSError:
+        category, instruction = "文件读不出", "设置文件读不出，请检查读取权限并修改"
+    else:
+        if not isinstance(value, dict) or "根目录" not in value:
+            category, instruction = "缺少根目录", "设置缺少“根目录”键，请修改"
+        elif not isinstance(value["根目录"], list) or any(
+                not isinstance(root, str) or not root.strip() or "\0" in root
+                for root in value["根目录"]):
+            category, instruction = "根目录格式错误", "“根目录”须为路径字符串数组，请修改"
+        elif not value["根目录"]:
+            category, instruction = "根目录为空", "尚未填写案件根目录，请修改"
+        else:
+            return value["根目录"], None
+    return [], {"类别": category, "原因":
+                '{} {}，写成 {{"根目录": ["绝对路径"]}}，'
+                '把“绝对路径”替换为案件根目录（Windows 路径可用 /）。'.format(instruction, settings)}
 
 
 def main():
@@ -70,9 +105,11 @@ def main():
     parser.add_argument("--根", action="append", default=[])
     args = parser.parse_args()
     settings = args.设置.expanduser()
-    roots = args.根 or json.loads(settings.read_text(encoding="utf-8"))["根目录"]
+    roots, settings_error = (args.根, None) if args.根 else read_settings(settings)
+    data = scan(roots, settings)
+    data["设置错误"] = settings_error
     sys.stdout.reconfigure(encoding="utf-8")
-    print(json.dumps(scan(roots, settings), ensure_ascii=False))
+    print(json.dumps(data, ensure_ascii=False))
 
 
 if __name__ == "__main__":

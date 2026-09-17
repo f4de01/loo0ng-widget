@@ -12,6 +12,9 @@ function textElement(tag, text, className) {
 }
 
 function render(data) {
+  const settingsError = document.querySelector('#settings-error');
+  settingsError.textContent = data.设置错误?.原因 ?? '';
+  settingsError.hidden = !data.设置错误;
   document.querySelector('#count').textContent = data.案件数;
   document.querySelector('#scanned').textContent = data.扫描时间;
   rows.replaceChildren();

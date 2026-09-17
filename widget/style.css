@@ -14,7 +14,7 @@ h2 { margin: 0; font-size: 15px; font-weight: 600; overflow-wrap: anywhere; }
 .detail { color: #758078; font-size: 12px; line-height: 1.7; margin: 8px 0; overflow-wrap: anywhere; }
 .pending { color: #687b6b; font-size: 12px; margin: 0; }
 .pending.attention { color: #9a6229; }
-#error, .unreadable { color: #974c35; background: #f4e8df; padding: 12px; font-size: 12px; line-height: 1.7; overflow-wrap: anywhere; }
+#error, #settings-error, .unreadable { color: #974c35; background: #f4e8df; padding: 12px; font-size: 12px; line-height: 1.7; overflow-wrap: anywhere; }
 footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-top: 16px; font-size: 11px; color: #78867d; }
 button { color: #365845; background: #e3e9dc; border: 1px solid #cdd8c7; border-radius: 5px; padding: 7px 14px; font: inherit; font-size: 12px; cursor: pointer; }
 button:disabled { cursor: wait; opacity: .6; }

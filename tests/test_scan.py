@@ -149,6 +149,39 @@ class ScanTests(unittest.TestCase):
         self.assertEqual(data["案件数"], 2)
         self.assertEqual([row["待看数"] for row in data["行"]], [0, 2])
 
+    def test_missing_root_does_not_hide_other_roots(self):
+        self.case("甲")
+        missing = self.root / "missing"
+        data = self.scan("--根", missing, "--根", self.root)
+        self.assertEqual([row["目录名"] for row in data["行"]], ["甲"])
+        self.assertEqual(data["读不出"], [{"目录名": "missing", "路径": str(missing),
+                                         "原因": "根目录不存在"}])
+
+    def test_unreadable_view_does_not_hide_other_cases(self):
+        self.case("甲")
+        view = self.case("乙") / "图视图.json"
+        if os.name == "nt":
+            import ctypes
+            from ctypes import wintypes
+            kernel = ctypes.WinDLL("kernel32", use_last_error=True)
+            kernel.CreateFileW.argtypes = [wintypes.LPCWSTR, wintypes.DWORD, wintypes.DWORD,
+                                          wintypes.LPVOID, wintypes.DWORD, wintypes.DWORD,
+                                          wintypes.HANDLE]
+            kernel.CreateFileW.restype = wintypes.HANDLE
+            kernel.CloseHandle.argtypes = [wintypes.HANDLE]
+            handle = kernel.CreateFileW(str(view), 0x80000000, 0, None, 3, 0, None)
+            self.assertNotEqual(handle, wintypes.HANDLE(-1).value)
+            self.addCleanup(kernel.CloseHandle, handle)
+        else:
+            if os.geteuid() == 0:
+                self.skipTest("root bypasses file permissions")
+            view.chmod(0)
+            self.addCleanup(view.chmod, 0o600)
+        data = self.scan("--根", self.root)
+        self.assertEqual([row["目录名"] for row in data["行"]], ["甲"])
+        self.assertEqual(data["读不出"][0]["目录名"], "乙")
+        self.assertIn("无法读取", data["读不出"][0]["原因"])
+
     def test_default_settings_are_read_from_home(self):
         settings = self.root / ".loo0ng" / "卡片设置.json"
         settings.parent.mkdir()
@@ -162,6 +195,32 @@ class ScanTests(unittest.TestCase):
         data = json.loads(result.stdout)
         self.assertEqual(data["设置文件"], str(settings))
         self.assertEqual(data["案件数"], 1)
+
+    def test_missing_settings_give_creation_instructions(self):
+        settings = self.root / "settings.json"
+        data = self.scan("--设置", settings)
+        self.assertEqual(data["设置错误"]["类别"], "文件不存在")
+        self.assertIn(str(settings), data["设置错误"]["原因"])
+        self.assertIn("创建", data["设置错误"]["原因"])
+        self.assertIn('{"根目录": ["绝对路径"]}', data["设置错误"]["原因"])
+        self.assertEqual(data["行"], [])
+        self.assertEqual(data["读不出"], [])
+        self.assertEqual(data["案件数"], 0)
+
+    def test_invalid_settings_give_distinct_repair_instructions(self):
+        settings = self.root / "settings.json"
+        for content, category in (("{", "不是 JSON"), ('{}', "缺少根目录"),
+                                  ('{"根目录": []}', "根目录为空"),
+                                  ('{"根目录": "wrong"}', "根目录格式错误"),
+                                  ('{"根目录": [null]}', "根目录格式错误")):
+            with self.subTest(category=category, content=content):
+                settings.write_text(content, encoding="utf-8")
+                data = self.scan("--设置", settings)
+                self.assertEqual(data["设置错误"]["类别"], category)
+                self.assertIn(str(settings), data["设置错误"]["原因"])
+                self.assertIn('{"根目录": ["绝对路径"]}', data["设置错误"]["原因"])
+                self.assertEqual(data["行"], [])
+                self.assertEqual(data["读不出"], [])
 
     def test_nested_objects_in_display_fields_cannot_leak_entries(self):
         self.case("甲", {**EMPTY, "生成时间": {"条目": [1]}})
