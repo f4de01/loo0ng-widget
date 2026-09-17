@@ -2,7 +2,22 @@
 * { box-sizing: border-box; }
 body { margin: 0; }
 main { min-height: 100vh; padding: 22px; }
-header { display: flex; justify-content: space-between; align-items: end; gap: 16px; padding-bottom: 18px; border-bottom: 1px solid #d4d9d0; }
+header { display: flex; flex-direction: column; gap: 12px; padding-bottom: 18px; border-bottom: 1px solid #d4d9d0; user-select: none; touch-action: none; }
+.header-content { display: flex; justify-content: space-between; align-items: end; gap: 16px; width: 100%; }
+header.draggable { cursor: grab; }
+header.dragging { cursor: grabbing; }
+.window-controls { display: flex; flex: none; cursor: default; }
+.window-controls button { display: grid; place-items: center; padding: 0; border: 0; border-radius: 0; background: transparent; font: 18px/1 "Segoe UI", sans-serif; }
+body.win .window-controls { align-self: flex-end; margin: -22px -22px 0 0; }
+body.win .window-controls button { width: 44px; height: 32px; }
+body.win #minimize:hover { background: #dce0d6; }
+body.win #close:hover { color: white; background: #c42b1c; }
+body.mac .window-controls { align-self: flex-start; gap: 8px; }
+body.mac .window-controls button { width: 14px; height: 14px; border-radius: 50%; font-size: 12px; color: #492c22; }
+body.mac #close { order: -1; background: #ff5f57; }
+body.mac #minimize { background: #febc2e; }
+body.mac .window-controls span { visibility: hidden; }
+body.mac .window-controls:hover span, body.mac .window-controls button:focus-visible span { visibility: visible; }
 .eyebrow { font-size: 11px; letter-spacing: .18em; color: #78867d; }
 h1 { margin: 6px 0 0; font-size: 20px; font-weight: 600; }
 #count { margin-left: 6px; font-size: 14px; color: #728176; }
@@ -22,7 +37,7 @@ h2 { margin: 0; font-size: 15px; font-weight: 600; overflow-wrap: anywhere; }
 .detail { color: #758078; font-size: 12px; line-height: 1.7; margin: 8px 0; overflow-wrap: anywhere; }
 .pending { color: #687b6b; font-size: 12px; margin: 0; }
 .pending.attention { color: #9a6229; }
-#error, #settings-error, .unreadable { color: #974c35; background: #f4e8df; padding: 12px; font-size: 12px; line-height: 1.7; overflow-wrap: anywhere; }
+#error, #window-error, #settings-error, .unreadable { color: #974c35; background: #f4e8df; padding: 12px; font-size: 12px; line-height: 1.7; overflow-wrap: anywhere; }
 footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-top: 16px; font-size: 11px; color: #78867d; }
 button { color: #365845; background: #e3e9dc; border: 1px solid #cdd8c7; border-radius: 5px; padding: 7px 14px; font: inherit; font-size: 12px; cursor: pointer; }
 button:disabled { cursor: wait; opacity: .6; }

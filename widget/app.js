@@ -5,6 +5,10 @@ const status = document.querySelector('#status');
 const refresh = document.querySelector('#refresh');
 let expandedPath = null;
 let expandedDetails = null;
+document.body.classList.add(/Mac|iPhone|iPad/.test(navigator.userAgent) ? 'mac' : 'win');
+// Start local module loading before the first interaction, shared with polling.
+const hostClient = hostState() ? import('./vendor/zebar-3.3.1.js') : null;
+if (hostClient) hostClient.catch(showError);
 
 function textElement(tag, text, className) {
   const element = document.createElement(tag);
@@ -79,7 +83,7 @@ function hostState() {
 }
 
 async function scan() {
-  const zebar = await import('./vendor/zebar-3.3.1.js');
+  const zebar = await hostClient;
   const htmlPath = zebar.currentWidget().htmlPath;
   const script = htmlPath.replace(/[^\\/]+$/, 'scan.py');
   const program = navigator.userAgent.includes('Windows') ? 'python' : 'python3';
@@ -122,6 +126,14 @@ if (new URLSearchParams(location.search).get('dev') === '1') {
   status.textContent = '未连接宿主';
   refresh.disabled = true;
 } else {
+  const windowError = error => {
+    const message = document.querySelector('#window-error');
+    message.textContent = String(error);
+    message.hidden = false;
+  };
+  Promise.all([hostClient, import('./window.js')])
+    .then(([zebar, { setupWindow }]) => setupWindow(zebar, windowError))
+    .catch(error => windowError(`窗口控件初始化失败：${error}`));
   refresh.addEventListener('click', poll);
   setInterval(poll, 5000);
   poll();

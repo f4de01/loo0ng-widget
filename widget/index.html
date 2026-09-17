@@ -9,9 +9,16 @@
 <body>
   <main>
     <header>
-      <div><span class="eyebrow">loo0ng</span><h1>在办案件 <span id="count">—</span></h1></div>
-      <time id="scanned">尚未扫描</time>
+      <div class="window-controls" aria-label="窗口">
+        <button id="minimize" type="button" aria-label="最小化" title="最小化" disabled><span aria-hidden="true">−</span></button>
+        <button id="close" type="button" aria-label="关闭" title="关闭" disabled><span aria-hidden="true">×</span></button>
+      </div>
+      <div class="header-content">
+        <div><span class="eyebrow">loo0ng</span><h1>在办案件 <span id="count">—</span></h1></div>
+        <time id="scanned">尚未扫描</time>
+      </div>
     </header>
+    <p id="window-error" role="alert" hidden></p>
     <p id="error" role="alert" hidden></p>
     <p id="settings-error" role="alert" hidden></p>
     <section id="rows" aria-label="案件"></section>
