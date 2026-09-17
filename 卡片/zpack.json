@@ -12,7 +12,7 @@
       "name": "案件卡片",
       "htmlPath": "./index.html",
       "zOrder": "normal",
-      "shownInTaskbar": false,
+      "shownInTaskbar": true,
       "focused": false,
       "resizable": true,
       "transparent": true,

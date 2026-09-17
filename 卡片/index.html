@@ -5,7 +5,7 @@
 <title>案件卡片</title>
 <style>
   :root {
-    --底: rgba(22, 24, 28, 0.92);
+    --底: rgba(22, 24, 28, 0.94);
     --字: #e9eaee;
     --淡: #9aa0aa;
     --线: rgba(255, 255, 255, 0.10);
@@ -17,6 +17,7 @@
     font: 13px/1.5 "Microsoft YaHei UI", "PingFang SC", system-ui, sans-serif;
     color: var(--字);
     background: transparent;
+    user-select: none;
   }
   .卡 {
     height: 100%;
@@ -24,21 +25,49 @@
     flex-direction: column;
     background: var(--底);
     border: 1px solid var(--线);
-    border-radius: 12px;
+    border-radius: 10px;
     overflow: hidden;
   }
+
+  /* 表头：按住它拖窗口。窗口控件按平台摆，样式也按平台走。 */
   header {
-    padding: 10px 12px;
-    border-bottom: 1px solid var(--线);
     display: flex;
     align-items: center;
     gap: 8px;
-    cursor: move;
-    user-select: none;
+    padding: 0 0 0 12px;
+    height: 32px;
+    border-bottom: 1px solid var(--线);
+    cursor: default;
   }
   header b { font-weight: 600; }
-  header .右 { margin-left: auto; color: var(--淡); font-size: 11px; }
-  .身 { flex: 1; overflow: auto; padding: 6px 0; }
+  header .状态 { margin-left: auto; color: var(--淡); font-size: 11px; padding-right: 8px; }
+
+  .控件 { display: flex; align-items: center; }
+
+  /* Windows：右上角，一条杠与一个叉，关闭悬停变红。 */
+  body.win header { padding-right: 0; }
+  /* 控件在 DOM 里排在最前（mac 的红绿灯在左），Windows 要把它整组推到最右。 */
+  body.win .控件 { order: 3; height: 100%; }
+  body.win .控件 button {
+    width: 46px; height: 100%;
+    border: 0; background: transparent; color: var(--字);
+    font: 15px/1 "Segoe Fluent Icons", "Segoe MDL2 Assets", system-ui, sans-serif;
+    cursor: default;
+  }
+  body.win .控件 button:hover { background: rgba(255, 255, 255, 0.10); }
+  body.win .控件 button.关:hover { background: #c42b1c; color: #fff; }
+
+  /* macOS：左上角红绿灯，关闭在最左。 */
+  body.mac header { padding-left: 10px; }
+  body.mac .控件 { order: -1; gap: 8px; margin-right: 4px; }
+  body.mac .控件 button {
+    width: 12px; height: 12px; padding: 0;
+    border: 0; border-radius: 50%; font-size: 0; cursor: default;
+  }
+  body.mac .控件 button.关 { background: #ff5f57; }
+  body.mac .控件 button.最小 { background: #febc2e; }
+
+  .身 { flex: 1; overflow: auto; padding: 4px 0; }
   .行 {
     padding: 8px 12px;
     border-bottom: 1px solid var(--线);
@@ -52,6 +81,7 @@
   .次 { grid-column: 1 / -1; color: var(--淡); font-size: 12px; }
   .待看 { color: var(--重点); }
   .坏 { padding: 8px 12px; color: #ff8f8f; font-size: 12px; }
+
   footer {
     border-top: 1px solid var(--线);
     padding: 6px 10px;
@@ -61,33 +91,30 @@
     font-size: 11px;
     color: var(--淡);
   }
-  button {
+  footer button {
     font: inherit;
     color: var(--字);
     background: rgba(255, 255, 255, 0.06);
     border: 1px solid var(--线);
     border-radius: 6px;
     padding: 3px 8px;
-    cursor: pointer;
+    cursor: default;
   }
-  button:hover { background: rgba(255, 255, 255, 0.12); }
+  footer button:hover { background: rgba(255, 255, 255, 0.12); }
   footer .右 { margin-left: auto; font-variant-numeric: tabular-nums; }
   details { padding: 6px 12px; color: var(--淡); font-size: 11px; }
   pre { white-space: pre-wrap; word-break: break-all; max-height: 40vh; overflow: auto; }
 </style>
 </head>
 <body>
-<img src="http://127.0.0.1:8787/探针?信号=页面加载了" alt="" style="position:absolute;width:1px;height:1px;opacity:0">
-<script>
-  try {
-    var i = new Image();
-    i.src = 'http://127.0.0.1:8787/探针?信号=经典脚本跑了';
-  } catch (e) {}
-</script>
 <div class="卡">
-  <header data-tauri-drag-region>
-    <b data-tauri-drag-region>在办案件</b>
-    <span class="右" id="来源" data-tauri-drag-region></span>
+  <header id="表头">
+    <div class="控件">
+      <button class="最小" id="最小化" title="最小化">&#xE921;</button>
+      <button class="关" id="关闭" title="关闭">&#xE8BB;</button>
+    </div>
+    <b>在办案件</b>
+    <span class="状态" id="来源"></span>
   </header>
   <div class="身" id="身">载入中</div>
   <details>
@@ -97,7 +124,6 @@
   <footer>
     <button id="刷新">扫一次</button>
     <button id="轮询">开轮询</button>
-    <button id="关卡">关掉这张卡</button>
     <span class="右" id="计时"></span>
   </footer>
 </div>
@@ -113,25 +139,23 @@
       }).catch(() => {});
     } catch (_) {}
   };
-  window.探报({
-    阶段: '页面起来了',
-    地址: location.href,
-    全局: Object.keys(window).filter(k => /ZEBAR|TAURI/i.test(k)),
-    会话里有ZEBAR_STATE: (() => { try { return Boolean(sessionStorage.getItem('ZEBAR_STATE')); } catch (e) { return 'sessionStorage 读不了'; } })(),
-    ua: navigator.userAgent,
-  });
-  window.addEventListener('error', e => window.探报({ 阶段: 'error', 话: String(e.message), 源: String(e.filename || '') }));
-  window.addEventListener('unhandledrejection', e => window.探报({ 阶段: '没接住的 reject', 话: String((e.reason && (e.reason.stack || e.reason.message)) || e.reason) }));
+  window.addEventListener('error', e => window.探报({ 阶段: 'error', 话: String(e.message) }));
+  window.addEventListener('unhandledrejection', e => window.探报({
+    阶段: '没接住的 reject',
+    话: String((e.reason && (e.reason.stack || e.reason.message)) || e.reason),
+  }));
 </script>
 
 <script type="module">
 import { 汇总 } from './aggregate.js';
 import { 扫一次, 在宿主里, 报错 } from './read.js';
 
+const ZEBAR = 'https://esm.sh/zebar@3.3.1';
 const 身 = document.getElementById('身');
 const 原始 = document.getElementById('原始');
 const 来源栏 = document.getElementById('来源');
 const 计时 = document.getElementById('计时');
+const 表头 = document.getElementById('表头');
 
 let 定时器 = null;
 const 间隔毫秒 = 5000;
@@ -141,6 +165,80 @@ let 耗时累计 = 0;
 function 转义(s) {
   return String(s).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
 }
+
+/* ---------------------------------------------------------------- 窗口行为
+
+宿主不放行两件事：给窗口装上系统装饰（`set_decorations`），以及 Tauri 自己的拖动
+（`start_dragging`，也就是 `data-tauri-drag-region` 背后那一个）。放行的是读位置与
+`setPosition`，所以拖动这里自己算：按住表头，鼠标挪多少，窗口挪多少。
+
+最小化用系统的 `minimize`；还原不能由我们来做（`unminimize` 也不放行），所以窗口必须
+出现在任务栏/程序坞里，还原交给系统，这就是「按各平台常规逻辑」的落法。
+------------------------------------------------------------------------- */
+
+const 是mac = /Mac|iPhone|iPad/.test(navigator.userAgent);
+document.body.classList.add(是mac ? 'mac' : 'win');
+
+if (在宿主里()) {
+  // 按下表头那一刻不能再等 import：动态 import 回来之前鼠标早就松了。
+  // 所以启动时先把宿主与 PhysicalPosition 取好，按下时只做同步的事。
+  const [zebar, dpi] = await Promise.all([
+    import(ZEBAR),
+    import('https://esm.sh/@tauri-apps/api@2/dpi'),
+  ]);
+  const 卡 = zebar.currentWidget();
+  const 窗 = 卡.tauriWindow;
+  const PhysicalPosition = dpi.PhysicalPosition;
+  window.探报 && window.探报({ 阶段: '窗口就位' });
+
+  表头.addEventListener('mousedown', e => {
+    if (e.button !== 0 || e.target.closest('.控件')) return;
+    e.preventDefault();
+    const 起鼠 = { x: e.screenX, y: e.screenY };
+    const 比 = window.devicePixelRatio || 1;
+    let 起窗 = null;
+    let 待挪 = null;
+    let 排队 = false;
+
+    窗.outerPosition().then(p => { 起窗 = { x: p.x, y: p.y }; });
+
+    const 挪 = () => {
+      排队 = false;
+      if (待挪) 窗.setPosition(new PhysicalPosition(待挪.x, 待挪.y)).catch(() => {});
+    };
+    const 动 = ev => {
+      if (!起窗) return;
+      待挪 = {
+        x: Math.round(起窗.x + (ev.screenX - 起鼠.x) * 比),
+        y: Math.round(起窗.y + (ev.screenY - 起鼠.y) * 比),
+      };
+      if (!排队) { 排队 = true; requestAnimationFrame(挪); }
+    };
+    const 松 = () => {
+      window.removeEventListener('mousemove', 动);
+      window.removeEventListener('mouseup', 松);
+      window.探报 && window.探报({ 阶段: '拖完了', 挪到: 待挪, 比 });
+    };
+    window.addEventListener('mousemove', 动);
+    window.addEventListener('mouseup', 松);
+    window.探报 && window.探报({ 阶段: '按住表头了', 起鼠, 比 });
+  });
+
+  document.getElementById('最小化').onclick = () => {
+    window.探报 && window.探报({ 阶段: '点了最小化' });
+    窗.minimize().catch(err => 报错('最小化失败：' + err));
+  };
+  document.getElementById('关闭').onclick = () => {
+    window.探报 && window.探报({ 阶段: '点了关闭' });
+    卡.close()
+      .then(() => window.探报 && window.探报({ 阶段: '关闭调用返回了' }))
+      .catch(err => { window.探报 && window.探报({ 阶段: '关闭报错', 话: String(err) }); 报错('关闭失败：' + err); });
+  };
+} else {
+  document.querySelector('.控件').style.display = 'none';
+}
+
+/* ---------------------------------------------------------------- 画与扫 */
 
 function 画(结果, 扫描) {
   const 块 = [];
@@ -193,13 +291,6 @@ document.getElementById('轮询').onclick = e => {
   }
 };
 
-document.getElementById('关卡').onclick = async () => {
-  if (!在宿主里()) return;
-  const zebar = await import('https://esm.sh/zebar@3.3.1');
-  await zebar.currentWidget().close();
-};
-
-window.探报 && window.探报({ 阶段: '模块跑起来了' });
 跑一次();
 // 原型期默认就开着轮询，这样「图变了卡片跟不跟」不必靠人去点。
 document.getElementById('轮询').click();
