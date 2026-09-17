@@ -56,7 +56,9 @@ New-Item -ItemType Directory -Force .scratch | Out-Null
 - 本地包和下载包的 31 个资源均被现有 `includeFiles` 覆盖（另有宿主读取的 `zpack.json`），所有包内文件名均为 ASCII；白名单无需改动。
 - README 的 mac 命令通过 Bash 语法检查，未在 mac 执行，符合本票不做 mac 验收的范围。开发说明的 PowerShell 预览导出命令使用已有种子回放根验证，生成可解析的 UTF-8 JSON。
 - Python 3.9.25：17 条 unittest 全部通过，编译检查和 `git diff --check` 通过；本仓库没有独立类型检查器。本票不改扫描行为，不增加测试缝。
-- 双轴审查：Standards 无发现；Spec 无实现缺陷。保留一项验收缺口：母票要求人实际照 README 安装并打开卡片，自动安装与建窗日志不能替代此项人手验收。#6 尚不关票。
+- 2026-09-17，用户确认已按 README 的 Windows 命令完成安装，并看到卡片正常显示；母票要求的人手安装验收已完成。mac 命令仍未实机验收，不在本票验收范围内。
+- 复核：Python 3.9.25 的 17 条 unittest、编译检查以及本地包和下载包的 31 个资源白名单检查全部通过。
+- 双轴审查：Standards 无发现；Spec 无实现缺陷。人手验收缺口已由上述用户确认闭合，#6 验收完成。
 
 ## #5 四档排序与展开验收记录
 
