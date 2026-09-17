@@ -1,0 +1,31 @@
+{
+  "$schema": "https://github.com/glzr-io/zebar/raw/v3.3.1/resources/zpack-schema.json",
+  "name": "loo0ng",
+  "version": "0.1.0",
+  "description": "只读案件进度，一案一行。",
+  "tags": ["productivity"],
+  "previewImages": [],
+  "repositoryUrl": "https://github.com/f4de01/loo0ng-widget",
+  "widgets": [{
+    "name": "案件卡片",
+    "htmlPath": "./index.html",
+    "zOrder": "normal",
+    "shownInTaskbar": true,
+    "focused": true,
+    "resizable": true,
+    "transparent": false,
+    "includeFiles": ["*.html", "*.css", "*.js", "*.py"],
+    "caching": {"defaultDuration": 0, "rules": []},
+    "privileges": {
+      "shellCommands": [
+        {"program": "python", "argsRegex": ".*scan\\.py.*"},
+        {"program": "python3", "argsRegex": ".*scan\\.py.*"}
+      ]
+    },
+    "presets": [{
+      "name": "默认", "anchor": "top_right", "offsetX": "24px", "offsetY": "24px",
+      "width": "460px", "height": "420px", "monitorSelection": {"type": "primary"},
+      "dockToEdge": {"enabled": false, "edge": null, "windowMargin": "0px"}
+    }]
+  }]
+}

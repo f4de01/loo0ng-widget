@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>在办案件</title>
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+  <main>
+    <header>
+      <div><span class="eyebrow">loo0ng</span><h1>在办案件 <span id="count">—</span></h1></div>
+      <time id="scanned">尚未扫描</time>
+    </header>
+    <p id="error" role="alert" hidden></p>
+    <section id="rows" aria-label="案件"></section>
+    <section id="unreadable" aria-label="读不出"></section>
+    <footer><button id="refresh" type="button">扫一次</button><span id="status" role="status">正在连接</span></footer>
+    <label id="development" hidden>开发预览：载入扫描结果 <input id="preview" type="file" accept="application/json,.json"></label>
+  </main>
+  <script type="module" src="./app.js"></script>
+</body>
+</html>
