@@ -25,15 +25,38 @@ python widget/scan.py --设置 <设置文件>
 
 ## 页面与宿主
 
-把 `widget/` 的内容装到 `~/.glzr/zebar/loo0ng/`，通过 Zebar 的「案件卡片 / 默认」打开。已有安装先备份。`includeFiles` 是资源白名单，新增资源要同步维护。
+发布版按 [README](../README.md#装法) 的一条命令安装；本地开发则把 `widget/` 的内容装到 `~/.glzr/zebar/loo0ng/`，通过 Zebar 的「案件卡片 / 默认」打开。已有安装先备份到 Zebar 目录外。
+
+`zpack.json` 的 `includeFiles` 是资源服务器的白名单，不是附带清单。`htmlPath` 指向的文件未被覆盖时，宿主直接回 500。新增资源必须同时加入白名单：当前 `*.html`、`*.css`、`*.js`、`*.py` 覆盖包入口，`vendor/**` 覆盖完整依赖、manifest、说明和许可证。`zpack.json` 是宿主读取的包描述，不是页面请求的资源；安装时仍必须复制它。不要把本机生成的 `__pycache__/` 拷进包里。
 
 页面直接按扫描数组顺序渲染。每五秒发起扫描，失败显示错误并保留上一轮内容和时刻；下一轮继续。手动按钮与轮询共享忙碌状态，避免重叠执行。
 
-未识别宿主时直接报错。开发预览要显式访问 `index.html?dev=1`，手动选择扫描 CLI 导出的 UTF-8 JSON；这条通道不轮询，也不替代宿主验收。
+未识别宿主时直接报错。不装宿主调样式时，在仓库根目录运行 `python -m http.server 8000 --bind 127.0.0.1 --directory widget`，浏览器打开 `http://127.0.0.1:8000/index.html?dev=1`，在页面里手动选择扫描 CLI 导出的 UTF-8 JSON。用完在终端按 Ctrl+C 停止服务器。这条显式通道不轮询，也不替代宿主验收；不带 `?dev=1` 会明确报未连接宿主。
 
-开发时改包后若仍看到旧页面，关闭该组件，清理 `%APPDATA%\zebar\webview-cache\loo0ng` 下该包的缓存，再打开。删除前确认实际目录，勿清其他组件缓存。
+只用合成案件生成预览 JSON。PowerShell 5.1 的 `>` 默认会写成 UTF-16，可在合成根已准备好后用下面的方式保存（将路径换成你的合成根）：
+
+```powershell
+$env:PYTHONIOENCODING = 'utf-8'
+[Console]::OutputEncoding = [Text.UTF8Encoding]::new($false)
+$preview = python widget/scan.py --根 'D:/合成案件'
+if ($LASTEXITCODE -ne 0) { throw '扫描失败' }
+New-Item -ItemType Directory -Force .scratch | Out-Null
+[IO.File]::WriteAllText((Join-Path $PWD '.scratch/preview.json'), ($preview -join "`n"), [Text.UTF8Encoding]::new($false))
+```
+
+开发时每次改包后，先关闭该组件（缓存被占用就退出 Zebar），确认 `%APPDATA%\zebar\webview-cache\loo0ng` 是该包的缓存目录，再清理并重新打开。否则看到的可能还是上一版，包括上一版的报错页。只清 `loo0ng`，勿清其他组件缓存；以后记在 WebView 本地存储里的窗口位置也会随清缓存丢失。
 
 客户端固定为 `zebar@3.3.1`，通过 `vendor/zebar-3.3.1.js` 本地导入；完整浏览器依赖、来源哈希和许可证均随包提供，`vendor/**` 纳入资源白名单。升级步骤见 [随包客户端](../widget/vendor/README.md)。一条命令安装属于 #6，窗口控件与拖动属于 #7，最终人手验收属于 #8。
+
+## #6 安装与说明验证记录
+
+- 2026-09-17，Windows PowerShell 5.1、Zebar 3.3.1：把原组件移到宿主目录外备份，在不存在的 `loo0ng` 目标上原样执行 README 中的 Windows 命令。无需 GitHub 登录，下载并安装成功；32 个文件与公开归档逐一核对 SHA-256 一致，包含整个 vendor。再次执行会拒绝覆盖已有组件。
+- 使用独立 WebView 缓存启动，宿主日志确认包有效并创建「案件卡片」窗口，进程窗口标题为 `Zebar - loo0ng / 案件卡片`。验后恢复原组件和正常启动；设置文件的前后哈希一致。
+- 命令下载的是 GitHub 已发布的 `main`。本次远端页面代码落后于本地主线，所以此次验证证明下载安装与宿主建窗成功，不代表本地最新功能已通过这条公开命令交付。开发者需先将实现发布到远端，用户安装才会取得对应版本。
+- 本地包和下载包的 31 个资源均被现有 `includeFiles` 覆盖（另有宿主读取的 `zpack.json`），所有包内文件名均为 ASCII；白名单无需改动。
+- README 的 mac 命令通过 Bash 语法检查，未在 mac 执行，符合本票不做 mac 验收的范围。开发说明的 PowerShell 预览导出命令使用已有种子回放根验证，生成可解析的 UTF-8 JSON。
+- Python 3.9.25：17 条 unittest 全部通过，编译检查和 `git diff --check` 通过；本仓库没有独立类型检查器。本票不改扫描行为，不增加测试缝。
+- 双轴审查：Standards 无发现；Spec 无实现缺陷。保留一项验收缺口：母票要求人实际照 README 安装并打开卡片，自动安装与建窗日志不能替代此项人手验收。#6 尚不关票。
 
 ## #5 四档排序与展开验收记录
 
