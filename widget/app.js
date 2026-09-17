@@ -48,7 +48,7 @@ function hostState() {
 }
 
 async function scan() {
-  const zebar = await import('https://esm.sh/zebar@3.3.1');
+  const zebar = await import('./vendor/zebar-3.3.1.js');
   const htmlPath = zebar.currentWidget().htmlPath;
   const script = htmlPath.replace(/[^\\/]+$/, 'scan.py');
   const program = navigator.userAgent.includes('Windows') ? 'python' : 'python3';

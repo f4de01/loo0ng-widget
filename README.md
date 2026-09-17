@@ -27,7 +27,7 @@
 
 Windows 上同一路径展开为 `C:\Users\<用户名>\.glzr\zebar\loo0ng\`。
 
-在 Zebar 里打开「案件卡片 / 默认」。当前客户端仍需要网络，离线支持由 #3 交付。测试、显式开发预览与验收进度见 [开发说明](docs/development.md)。
+在 Zebar 里打开「案件卡片 / 默认」。客户端与浏览器依赖已随包提供，运行时无需外网；复制时须包含整个 `vendor/` 目录。测试、显式开发预览与验收进度见 [开发说明](docs/development.md)。第三方代码的固定版本、来源和许可证见 [随包客户端](widget/vendor/README.md)。
 
 ## 案件数据
 

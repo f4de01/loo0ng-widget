@@ -14,7 +14,7 @@
     "focused": true,
     "resizable": true,
     "transparent": false,
-    "includeFiles": ["*.html", "*.css", "*.js", "*.py"],
+    "includeFiles": ["*.html", "*.css", "*.js", "*.py", "vendor/**"],
     "caching": {"defaultDuration": 0, "rules": []},
     "privileges": {
       "shellCommands": [

@@ -1,0 +1,98 @@
+[
+  {
+    "file": "zebar-3.3.1.js",
+    "url": "https://esm.sh/zebar@3.3.1/es2022/zebar.bundle.mjs",
+    "upstream_sha256": "9a800b359967f36b6fe791d9c627e32ca7a1337d2e2307879db817eb15f03add",
+    "sha256": "ad41fa5f71f01b11c3a2354e839b5d8e891d91e417e394dfd207bb5eb338b1b2"
+  },
+  {
+    "file": "tauri-apps_api2.0.2_es2022_external_tslib_tslib.es6.js",
+    "url": "https://esm.sh/@tauri-apps/api@2.0.2/es2022/external/tslib/tslib.es6.mjs",
+    "upstream_sha256": "29778871829c8157ddd6ff8f4eaef6017e585ab3e0c2733516b37d85cb159bc0",
+    "sha256": "5b62f668d597814737f4119c9c910d9db93dfde9405bc3e2150a522fba108dbc"
+  },
+  {
+    "file": "tauri-apps_api2.0.2_es2022_dpi.js",
+    "url": "https://esm.sh/@tauri-apps/api@2.0.2/es2022/dpi.mjs",
+    "upstream_sha256": "2f18b6ef4ccc28633cda8ec7654e8652277fb28d07f3176bfe8655eb2404a971",
+    "sha256": "8f1960cca4536c5ab930b4458f592319736f7218087be55bf1ef9466cd333dd2"
+  },
+  {
+    "file": "tauri-apps_api2.0.2_es2022_event.js",
+    "url": "https://esm.sh/@tauri-apps/api@2.0.2/es2022/event.mjs",
+    "upstream_sha256": "1d1a67df5d7ca6fd56ce5a7ddd46918e82c890fd46f4918b5f6099e815a0cd01",
+    "sha256": "ba7abb029c5a2eee1a7caca4129954c792f9dd7b390b98c5b4ca199b9f4156d7"
+  },
+  {
+    "file": "tauri-apps_api2.0.2_es2022_core.js",
+    "url": "https://esm.sh/@tauri-apps/api@2.0.2/es2022/core.mjs",
+    "upstream_sha256": "397f5ff7712ff73f86fb9ad8d27fe13ecb0812e6cd9aee49f277074eb0151460",
+    "sha256": "6946d19dbc4cb1c0390f575acb4ee198f5050dcc75d2875e7b4c4e1d7bafcc2e"
+  },
+  {
+    "file": "tauri-apps_api2.0.2_es2022_image.js",
+    "url": "https://esm.sh/@tauri-apps/api@2.0.2/es2022/image.mjs",
+    "upstream_sha256": "684c7e5f3fa97752717ab1835ec92a7500c1085a60bd25764cc8daf87b95da9e",
+    "sha256": "945e8b28048a33e81207b81b4fb666b3790114f0f47919f016e26d050ec80841"
+  },
+  {
+    "file": "luxon3.4.4_es2022_src_datetime.js",
+    "url": "https://esm.sh/luxon@3.4.4/es2022/src/datetime.mjs",
+    "upstream_sha256": "63745496738050f16a670dd1be4c18ba1950a8adecc2db4b9d068d99483b8a81",
+    "sha256": "51bb9d07e828283afd4aa5ed96a59281e7bbc0b550da0389db65678bed601242"
+  },
+  {
+    "file": "luxon3.4.4_es2022_src_duration.js",
+    "url": "https://esm.sh/luxon@3.4.4/es2022/src/duration.mjs",
+    "upstream_sha256": "3daf0326879f662edea576291f34a78d542567f7bc1380199207882e4183ee5f",
+    "sha256": "538f57b2891eab55e0e9754e636fc22b60de50d96b5409f084ee09ab45d7ab21"
+  },
+  {
+    "file": "luxon3.4.4_es2022_src_interval.js",
+    "url": "https://esm.sh/luxon@3.4.4/es2022/src/interval.mjs",
+    "upstream_sha256": "ff96261441e63a72e1d31a3383c392a22099dfbf066a886986048dc2350cd217",
+    "sha256": "3e08d1098d696c01a5707cb2f99c03e851a7f5f6124c80f6af7fb9636ec19646"
+  },
+  {
+    "file": "luxon3.4.4_es2022_src_info.js",
+    "url": "https://esm.sh/luxon@3.4.4/es2022/src/info.mjs",
+    "upstream_sha256": "0de699158e87b4b76464fc46d14d7ee0fdb0cf4799c9b3abee59ac430864cbeb",
+    "sha256": "58a2902a6ac0387e94e5ea0a263af34e66a8bbf97978b0f1eee57ee4a64e92c5"
+  },
+  {
+    "file": "luxon3.4.4_es2022_src_zone.js",
+    "url": "https://esm.sh/luxon@3.4.4/es2022/src/zone.mjs",
+    "upstream_sha256": "e792636315e9875503825f2c64b050fb8feb8227f83a513c005f37df1572e297",
+    "sha256": "c9f8339fe38f2399a34e23271bc8124170e17a2920eb4f9e5b87f29fb5329a04"
+  },
+  {
+    "file": "luxon3.4.4_es2022_src_zones_fixedOffsetZone.js",
+    "url": "https://esm.sh/luxon@3.4.4/es2022/src/zones/fixedOffsetZone.mjs",
+    "upstream_sha256": "6cbf6affa7e3ba0c7b5cce4ffb1dc784d2c29a988ac6718b51035cac8ec16a36",
+    "sha256": "07c0cd2e0451caf1e4bc73aad1c8ac2e5e1bdf74890d00c996402f927f090772"
+  },
+  {
+    "file": "luxon3.4.4_es2022_src_zones_IANAZone.js",
+    "url": "https://esm.sh/luxon@3.4.4/es2022/src/zones/IANAZone.mjs",
+    "upstream_sha256": "197adce855b184593e6b48157ea3261f002e80adbb34f190ad8f84c6dd30d709",
+    "sha256": "f164b766d7f99753f92ebba1ca3ab4e93ab50e4dfea73cde1b8d3bc4d72cfe8d"
+  },
+  {
+    "file": "luxon3.4.4_es2022_src_zones_invalidZone.js",
+    "url": "https://esm.sh/luxon@3.4.4/es2022/src/zones/invalidZone.mjs",
+    "upstream_sha256": "7071c76f136a1538440a469b230c22c573c48eba8bd9a8c9ca6c1549f9778bb0",
+    "sha256": "bcc102df454c6fee1bcbc175241a22174d3ade9d672abad077aec1285a65fcad"
+  },
+  {
+    "file": "luxon3.4.4_es2022_src_zones_systemZone.js",
+    "url": "https://esm.sh/luxon@3.4.4/es2022/src/zones/systemZone.mjs",
+    "upstream_sha256": "c6f272ce2012764760b1266991d28891c951638dc706d4ed32a084839bce49a5",
+    "sha256": "b552c5d89a16608543bb311202497f53b4f28f4c2b66eeb939805d7ca67be251"
+  },
+  {
+    "file": "luxon3.4.4_es2022_src_settings.js",
+    "url": "https://esm.sh/luxon@3.4.4/es2022/src/settings.mjs",
+    "upstream_sha256": "22468f728b947fef3c8a8b02033878ad80ee3e9f20d8e1a2cdde22dc25bc50b1",
+    "sha256": "0f0ed9587d748cced6a354ff23f77e7e576005b1f6e34df027752677be042939"
+  }
+]
