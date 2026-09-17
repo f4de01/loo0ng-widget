@@ -3,6 +3,7 @@
 import argparse
 from datetime import datetime
 import json
+import locale
 from pathlib import Path
 import sys
 
@@ -39,6 +40,18 @@ def aggregate(path, view):
     }
 
 
+def case_order(row):
+    if row["待看"]:
+        tier = 0
+    elif row["前方"]:
+        tier = 1
+    elif row["进度"]["总数"] == 0:
+        tier = 2
+    else:
+        tier = 3
+    return tier, locale.strxfrm(row["目录名"]), row["目录名"], row["路径"]
+
+
 def scan(roots, settings):
     rows = []
     errors = []
@@ -68,7 +81,7 @@ def scan(roots, settings):
                 else:
                     reason = "机器可读视图结构不完整或字段类型不正确"
                 errors.append({"目录名": path.name, "路径": str(path), "原因": reason})
-    rows.sort(key=lambda row: row["目录名"])
+    rows.sort(key=case_order)
     return {"扫描时间": datetime.now().astimezone().isoformat(timespec="seconds"),
             "设置文件": str(settings), "根目录": roots, "行": rows, "读不出": errors,
             "案件数": len(rows)}
@@ -104,6 +117,10 @@ def main():
     parser.add_argument("--设置", type=Path, default=Path.home() / ".loo0ng" / "卡片设置.json")
     parser.add_argument("--根", action="append", default=[])
     args = parser.parse_args()
+    try:
+        locale.setlocale(locale.LC_COLLATE, "zh_CN.UTF-8")
+    except locale.Error:
+        parser.error("系统缺少 zh_CN.UTF-8 中文排序支持，无法按中文序扫描")
     settings = args.设置.expanduser()
     roots, settings_error = (args.根, None) if args.根 else read_settings(settings)
     data = scan(roots, settings)

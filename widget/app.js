@@ -3,6 +3,8 @@ const unreadable = document.querySelector('#unreadable');
 const errorBox = document.querySelector('#error');
 const status = document.querySelector('#status');
 const refresh = document.querySelector('#refresh');
+let expandedPath = null;
+let expandedDetails = null;
 
 function textElement(tag, text, className) {
   const element = document.createElement(tag);
@@ -18,18 +20,44 @@ function render(data) {
   document.querySelector('#count').textContent = data.案件数;
   document.querySelector('#scanned').textContent = data.扫描时间;
   rows.replaceChildren();
+  expandedDetails = null;
   for (const row of data.行) {
-    const article = document.createElement('article');
+    const article = document.createElement('details');
     article.className = 'case';
+    article.dataset.path = row.路径;
+    article.open = row.路径 === expandedPath;
+    if (article.open) expandedDetails = article;
+    const summary = document.createElement('summary');
+    summary.addEventListener('click', (event) => {
+      event.preventDefault();
+      const open = !article.open;
+      if (expandedDetails) expandedDetails.open = false;
+      article.open = open;
+      expandedDetails = open ? article : null;
+      expandedPath = open ? row.路径 : null;
+    });
     const heading = document.createElement('div');
     heading.className = 'case-heading';
     heading.append(textElement('h2', row.目录名),
       textElement('span', `${row.进度.已确认} / ${row.进度.总数}`, 'progress'));
-    article.append(heading,
+    const hint = row.待看数 ? `${row.待看数} 处等你看`
+      : row.进度.总数 === 0 ? '这案的图还是空的'
+      : row.前方.length === 0 ? '没有前方了' : '没有等你看的';
+    summary.append(heading,
       textElement('p', `当前：${row.当前模块 ?? '无'}　下一个：${row.下一个 ?? '无'}`, 'detail'),
-      textElement('p', `${row.待看数} 处等你看`, row.待看数 ? 'pending attention' : 'pending'));
+      textElement('p', hint, row.待看数 ? 'pending attention' : 'pending'));
+    const ahead = document.createElement('ul');
+    ahead.className = 'ahead';
+    ahead.setAttribute('aria-label', '前方');
+    for (const node of row.前方) {
+      const item = textElement('li', `${node.模块} › ${node.节点}`);
+      if ('时限' in node) item.append(textElement('span', node.时限, 'deadline'));
+      ahead.append(item);
+    }
+    article.append(summary, ahead);
     rows.append(article);
   }
+  expandedPath = expandedDetails?.dataset.path ?? null;
   unreadable.replaceChildren();
   for (const failure of data.读不出) {
     unreadable.append(textElement('p', `${failure.目录名}：${failure.原因}`, 'unreadable'));

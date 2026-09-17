@@ -37,7 +37,7 @@ class ScanTests(unittest.TestCase):
         (self.root / "ordinary").mkdir()
         self.case("nested", root=self.root / "ordinary")
         data = self.scan("--根", self.root)
-        self.assertEqual([row["目录名"] for row in data["行"]], ["丙", "乙", "甲"])
+        self.assertEqual([row["目录名"] for row in data["行"]], ["丙", "甲", "乙"])
         self.assertEqual(data["读不出"], [])
         self.assertEqual(data["根目录"], [str(self.root)])
         self.assertIn("扫描时间", data)
@@ -79,21 +79,21 @@ class ScanTests(unittest.TestCase):
         settings = self.root / "settings.json"
         settings.write_text(json.dumps({"根目录": [str(one), str(two)]}), encoding="utf-8")
         data = self.scan("--设置", settings)
-        self.assertEqual([row["目录名"] for row in data["行"]], ["乙", "甲"])
+        self.assertEqual([row["目录名"] for row in data["行"]], ["甲", "乙"])
         self.assertEqual(data["设置文件"], str(settings))
         settings.write_text("invalid", encoding="utf-8")
         data = self.scan("--设置", settings, "--根", one, "--根", two)
-        self.assertEqual([row["目录名"] for row in data["行"]], ["乙", "甲"])
+        self.assertEqual([row["目录名"] for row in data["行"]], ["甲", "乙"])
         self.case("丙", root=two)
         self.assertEqual([row["目录名"] for row in self.scan("--根", one, "--根", two)["行"]],
-                         ["丙", "乙", "甲"])
+                         ["丙", "甲", "乙"])
 
     def test_empty_and_not_applicable_graphs(self):
         self.case("甲")
         self.case("乙", {**EMPTY, "模块": [{"标题": "结束", "状态": "不适用", "节点": [
             {"标题": "甲", "状态": "不适用", "高亮": "无文书"},
             {"标题": "乙", "状态": "不适用", "高亮": "已清"}]}]})
-        done, empty = self.scan("--根", self.root)["行"]
+        empty, done = self.scan("--根", self.root)["行"]
         for row in (done, empty):
             self.assertIsNone(row["当前模块"])
             self.assertIsNone(row["下一个"])
@@ -101,6 +101,41 @@ class ScanTests(unittest.TestCase):
             self.assertEqual(row["待看"], [])
         self.assertEqual(empty["进度"], {"总数": 0, "未生成": 0, "已生成": 0, "已确认": 0, "不适用": 0})
         self.assertEqual(done["进度"], {"总数": 2, "未生成": 0, "已生成": 0, "已确认": 0, "不适用": 2})
+
+    def test_pending_ahead_empty_and_finished_cases_sort_in_four_tiers(self):
+        self.case("乙", {**EMPTY, "模块": [{"标题": "甲模块", "状态": "进行中", "节点": [
+            {"标题": "甲", "状态": "已生成", "高亮": "未清"},
+            {"标题": "乙", "状态": "未生成", "高亮": "无文书"}]}],
+            "前方": [{"标题": "甲模块", "节点": [{"标题": "乙"}]}]})
+        self.case("甲", {**EMPTY, "模块": [{"标题": "甲模块", "状态": "进行中", "节点": [
+            {"标题": "甲", "状态": "未生成", "高亮": "无文书"}]}],
+            "前方": [{"标题": "甲模块", "节点": [{"标题": "甲"}]}]})
+        self.case("丙")
+        self.case("丁", {**EMPTY, "模块": [{"标题": "甲模块", "状态": "已完成", "节点": [
+            {"标题": "甲", "状态": "已确认", "高亮": "已清"}]}]})
+        data = self.scan("--根", self.root)
+        self.assertEqual([row["目录名"] for row in data["行"]], ["乙", "甲", "丙", "丁"])
+
+    def test_each_tier_uses_chinese_name_order_independent_of_generation_time(self):
+        views = [
+            {**EMPTY, "模块": [{"标题": "甲模块", "状态": "进行中", "节点": [
+                {"标题": "甲", "状态": "已生成", "高亮": "未清"}]}]},
+            {**EMPTY, "模块": [{"标题": "甲模块", "状态": "进行中", "节点": [
+                {"标题": "甲", "状态": "未生成", "高亮": "无文书"}]}],
+                "前方": [{"标题": "甲模块", "节点": [{"标题": "甲"}]}]},
+            EMPTY,
+            {**EMPTY, "模块": [{"标题": "甲模块", "状态": "已完成", "节点": [
+                {"标题": "甲", "状态": "已确认", "高亮": "已清"}]}]},
+        ]
+        for view in views:
+            with self.subTest(view=view):
+                for name in ("乙", "甲", "丙"):
+                    self.case(name, view)
+                first = self.scan("--根", self.root)["行"]
+                self.assertEqual([row["目录名"] for row in first], ["丙", "甲", "乙"])
+                self.case("甲", {**view, "生成时间": "2026-09-17T12:00:00+08:00"})
+                second = self.scan("--根", self.root)["行"]
+                self.assertEqual([row["路径"] for row in second], [row["路径"] for row in first])
 
     def test_ahead_keeps_only_first_five_across_modules(self):
         self.case("甲", {**EMPTY, "前方": [
@@ -147,7 +182,7 @@ class ScanTests(unittest.TestCase):
         self.case("乙")
         data = self.scan("--根", self.root)
         self.assertEqual(data["案件数"], 2)
-        self.assertEqual([row["待看数"] for row in data["行"]], [0, 2])
+        self.assertEqual([row["待看数"] for row in data["行"]], [2, 0])
 
     def test_missing_root_does_not_hide_other_roots(self):
         self.case("甲")
