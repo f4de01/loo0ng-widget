@@ -1,0 +1,78 @@
+{
+  "name": "loo0ng",
+  "version": "0.0.1",
+  "description": "案件进度卡片：读律师本机各案件工作区的 图视图.json，一案一行。",
+  "tags": [
+    "productivity"
+  ],
+  "previewImages": [],
+  "excludeFiles": "",
+  "widgets": [
+    {
+      "name": "案件卡片",
+      "htmlPath": "./index.html",
+      "zOrder": "normal",
+      "shownInTaskbar": false,
+      "focused": false,
+      "resizable": true,
+      "transparent": true,
+      "includeFiles": [
+        "*.html",
+        "*.js",
+        "*.py"
+      ],
+      "caching": {
+        "defaultDuration": 0,
+        "rules": []
+      },
+      "privileges": {
+        "shellCommands": [
+          {
+            "program": "python",
+            "argsRegex": ".*scan\\.py.*"
+          },
+          {
+            "program": "python3",
+            "argsRegex": ".*scan\\.py.*"
+          }
+        ]
+      },
+      "presets": [
+        {
+          "name": "默认",
+          "anchor": "top_right",
+          "offsetX": "24px",
+          "offsetY": "24px",
+          "width": "420px",
+          "height": "360px",
+          "monitorSelection": {
+            "type": "primary"
+          },
+          "dockToEdge": {
+            "enabled": false,
+            "edge": null,
+            "windowMargin": "0px"
+          }
+        },
+        {
+          "name": "第二张",
+          "anchor": "bottom_right",
+          "offsetX": "24px",
+          "offsetY": "24px",
+          "width": "420px",
+          "height": "360px",
+          "monitorSelection": {
+            "type": "primary"
+          },
+          "dockToEdge": {
+            "enabled": false,
+            "edge": null,
+            "windowMargin": "0px"
+          }
+        }
+      ]
+    }
+  ],
+  "$schema": "https://github.com/glzr-io/zebar/raw/v3.0.0/resources/zpack-schema.json",
+  "repositoryUrl": "https://github.com/f4de01/loo0ng-widget"
+}

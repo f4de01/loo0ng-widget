@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<title>案件卡片</title>
+<style>
+  :root {
+    --底: rgba(22, 24, 28, 0.92);
+    --字: #e9eaee;
+    --淡: #9aa0aa;
+    --线: rgba(255, 255, 255, 0.10);
+    --重点: #f0b429;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    font: 13px/1.5 "Microsoft YaHei UI", "PingFang SC", system-ui, sans-serif;
+    color: var(--字);
+    background: transparent;
+  }
+  .卡 {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    background: var(--底);
+    border: 1px solid var(--线);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+  header {
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--线);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: move;
+    user-select: none;
+  }
+  header b { font-weight: 600; }
+  header .右 { margin-left: auto; color: var(--淡); font-size: 11px; }
+  .身 { flex: 1; overflow: auto; padding: 6px 0; }
+  .行 {
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--线);
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 2px 10px;
+  }
+  .行:last-child { border-bottom: 0; }
+  .名 { font-weight: 600; }
+  .进度 { color: var(--淡); font-variant-numeric: tabular-nums; }
+  .次 { grid-column: 1 / -1; color: var(--淡); font-size: 12px; }
+  .待看 { color: var(--重点); }
+  .坏 { padding: 8px 12px; color: #ff8f8f; font-size: 12px; }
+  footer {
+    border-top: 1px solid var(--线);
+    padding: 6px 10px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    color: var(--淡);
+  }
+  button {
+    font: inherit;
+    color: var(--字);
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid var(--线);
+    border-radius: 6px;
+    padding: 3px 8px;
+    cursor: pointer;
+  }
+  button:hover { background: rgba(255, 255, 255, 0.12); }
+  footer .右 { margin-left: auto; font-variant-numeric: tabular-nums; }
+  details { padding: 6px 12px; color: var(--淡); font-size: 11px; }
+  pre { white-space: pre-wrap; word-break: break-all; max-height: 40vh; overflow: auto; }
+</style>
+</head>
+<body>
+<img src="http://127.0.0.1:8787/探针?信号=页面加载了" alt="" style="position:absolute;width:1px;height:1px;opacity:0">
+<script>
+  try {
+    var i = new Image();
+    i.src = 'http://127.0.0.1:8787/探针?信号=经典脚本跑了';
+  } catch (e) {}
+</script>
+<div class="卡">
+  <header data-tauri-drag-region>
+    <b data-tauri-drag-region>在办案件</b>
+    <span class="右" id="来源" data-tauri-drag-region></span>
+  </header>
+  <div class="身" id="身">载入中</div>
+  <details>
+    <summary>完整状态</summary>
+    <pre id="原始"></pre>
+  </details>
+  <footer>
+    <button id="刷新">扫一次</button>
+    <button id="轮询">开轮询</button>
+    <button id="关卡">关掉这张卡</button>
+    <span class="右" id="计时"></span>
+  </footer>
+</div>
+
+<!-- 原型期的探针：把页面的处境报给 原型/探针.py。答完题整段删。 -->
+<script>
+  window.探报 = o => {
+    try {
+      fetch('http://127.0.0.1:8787/探针', {
+        method: 'POST',
+        body: JSON.stringify(o),
+        headers: { 'Content-Type': 'text/plain' },
+      }).catch(() => {});
+    } catch (_) {}
+  };
+  window.探报({
+    阶段: '页面起来了',
+    地址: location.href,
+    全局: Object.keys(window).filter(k => /ZEBAR|TAURI/i.test(k)),
+    会话里有ZEBAR_STATE: (() => { try { return Boolean(sessionStorage.getItem('ZEBAR_STATE')); } catch (e) { return 'sessionStorage 读不了'; } })(),
+    ua: navigator.userAgent,
+  });
+  window.addEventListener('error', e => window.探报({ 阶段: 'error', 话: String(e.message), 源: String(e.filename || '') }));
+  window.addEventListener('unhandledrejection', e => window.探报({ 阶段: '没接住的 reject', 话: String((e.reason && (e.reason.stack || e.reason.message)) || e.reason) }));
+</script>
+
+<script type="module">
+import { 汇总 } from './aggregate.js';
+import { 扫一次, 在宿主里, 报错 } from './read.js';
+
+const 身 = document.getElementById('身');
+const 原始 = document.getElementById('原始');
+const 来源栏 = document.getElementById('来源');
+const 计时 = document.getElementById('计时');
+
+let 定时器 = null;
+const 间隔毫秒 = 5000;
+let 次数 = 0;
+let 耗时累计 = 0;
+
+function 转义(s) {
+  return String(s).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+}
+
+function 画(结果, 扫描) {
+  const 块 = [];
+  for (const r of 结果.行) {
+    const 待 = r.待看.length
+      ? `<span class="待看">${r.待看.length} 处等你看</span>`
+      : '没有等你看的';
+    块.push(`
+      <div class="行">
+        <div class="名">${转义(r.目录名)}</div>
+        <div class="进度">${r.进度.已确认} / ${r.进度.总数}</div>
+        <div class="次">当前：${转义(r.当前模块 ?? '无')}　下一个：${转义(r.下一个 ?? '无')}</div>
+        <div class="次">${待}</div>
+      </div>`);
+  }
+  for (const 坏 of 结果.读不出) {
+    块.push(`<div class="坏">${转义(坏.目录名)}：${转义(坏.原因)}</div>`);
+  }
+  if (!块.length) 块.push('<div class="坏">这些根目录下没有找到案件</div>');
+  身.innerHTML = 块.join('');
+
+  来源栏.textContent = `${扫描.来源}　${结果.行.length} 案`;
+  原始.textContent = JSON.stringify({ 结果, 扫描: { ...扫描, 案件: undefined } }, null, 2);
+}
+
+async function 跑一次() {
+  try {
+    const 扫描 = await 扫一次();
+    次数 += 1;
+    耗时累计 += 扫描.耗时 ?? 0;
+    画(汇总(扫描), 扫描);
+    计时.textContent = `第 ${次数} 次　本次 ${扫描.耗时}ms　平均 ${Math.round(耗时累计 / 次数)}ms`;
+  } catch (e) {
+    身.innerHTML = `<div class="坏">${转义(e.message)}</div>`;
+    原始.textContent = String(e.stack || e);
+    报错(e.message);
+  }
+}
+
+document.getElementById('刷新').onclick = 跑一次;
+
+document.getElementById('轮询').onclick = e => {
+  if (定时器) {
+    clearInterval(定时器);
+    定时器 = null;
+    e.target.textContent = '开轮询';
+  } else {
+    定时器 = setInterval(跑一次, 间隔毫秒);
+    e.target.textContent = `关轮询（${间隔毫秒 / 1000}s）`;
+  }
+};
+
+document.getElementById('关卡').onclick = async () => {
+  if (!在宿主里()) return;
+  const zebar = await import('https://esm.sh/zebar@3.3.1');
+  await zebar.currentWidget().close();
+};
+
+window.探报 && window.探报({ 阶段: '模块跑起来了' });
+跑一次();
+// 原型期默认就开着轮询，这样「图变了卡片跟不跟」不必靠人去点。
+document.getElementById('轮询').click();
+</script>
+</body>
+</html>
