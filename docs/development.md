@@ -6,7 +6,7 @@ Windows 首版已通过 #8 最终验收，逐项证据、机器与版本、Pytho
 
 ## 包与扫描
 
-`widget/` 是组件包。`scan.py` 是唯一测试缝，完成一层发现、读取和聚合。只支持 Python 3.9 及以上和标准库，没有 Node、JS 测试跑器或类型检查器。
+`widget/` 是组件包。测试缝是随包脚本的命令行，共两条：`scan.py` 完成一层发现、读取和聚合，`launch.py` 只找宿主、调一条命令（见下面的 #15 一节）。只支持 Python 3.9 及以上和标准库，没有 Node、JS 测试跑器或类型检查器。
 
 ```powershell
 python -m unittest discover -s tests -p 'test_*.py'
@@ -49,6 +49,42 @@ New-Item -ItemType Directory -Force .scratch | Out-Null
 开发时每次改包后，先关闭该组件（缓存被占用就退出 Zebar），确认 `%APPDATA%\zebar\webview-cache\loo0ng` 是该包的缓存目录，再清理并重新打开。否则看到的可能还是上一版，包括上一版的报错页。只清 `loo0ng`，勿清其他组件缓存；以后记在 WebView 本地存储里的窗口位置也会随清缓存丢失。
 
 客户端固定为 `zebar@3.3.1`，通过 `vendor/zebar-3.3.1.js` 本地导入；完整浏览器依赖、来源哈希和许可证均随包提供，`vendor/**` 纳入资源白名单。升级步骤见 [随包客户端](../widget/vendor/README.md)。一条命令安装属于 #6，窗口控件与拖动属于 #7，最终人手验收属于 #8。
+
+## #15 唤起脚本与 README 三入口
+
+不变量 4 改了措辞：**测试缝是随包脚本的命令行**，现在有两条——`scan.py` 一个人做完发现、读、聚合与显示串格式化，`launch.py` 只找宿主、调一条命令。页面仍然只渲染，不计数、不排序、不取第一个、不算日期。两条缝都不引入 node，也不引入 JS 测试跑器。
+
+`launch.py` 按 ADR-0001 办：PATH 里的 `zebar` 优先，没有就按平台挨个看固定路径（mac `/Applications/Zebar.app/Contents/MacOS/zebar`，Windows `C:\Program Files\glzr.io\Zebar\zebar.exe`），找到即以子进程调
+
+```
+<宿主> start-widget-preset --pack loo0ng --widget-name 案件卡片 --preset 默认
+```
+
+并透传子进程的退出码；都找不到就在 stdout 印一句「没找到 Zebar……」并退 1。脚本不做任何「带到前面」：宿主对已开着的预设无事发生，还原只能走任务栏 / 程序坞。
+
+```powershell
+python -m unittest discover -s tests -p 'test_launch.py'
+python widget/launch.py
+python widget/launch.py --平台 darwin --固定路径 'darwin=/tmp/zebar'
+```
+
+**测法**：`tests/test_launch.py` 只走命令行，起子进程跑 `launch.py`，不导入它的函数。假宿主是临时目录里一个把收到的参数写成 JSON、再按给定码退出的可执行文件（POSIX 上是 `zebar` 这个 `#!/bin/sh` 脚本，Windows 上是 `zebar.bat`，两边都转调本次的 `sys.executable`）。两个测试注入口：
+
+- PATH 整个换成测试自己的目录，所以「PATH 里有 / 没有」两种情形都由测试说了算。
+- `--固定路径 平台=路径` 可重复，给了就整张固定路径表都换成注入的，再按 `--平台` 选那一列。这样「按平台、按顺序找」有测试守，而两个真实安装路径的字面值不进测试——**测试一次都不许碰本机真装的 Zebar**，否则会在跑测试时把卡片开出来。那两个字面值由 Windows 人手验收（#20）和 mac 交付票守。
+
+八条行为测试覆盖：参数正好是那一条命令、PATH 优先于固定路径、固定路径按顺序走且跳过不存在的、另一个平台那列碰都不碰、目录不会被当成宿主、都找不到时退 1 且那句话含安装去处、没有固定路径表的平台只看 PATH、假宿主的退出码透传。第九条是例外：它不跑脚本，只在 `launch.py` 的源码文本里找那两个真实安装路径的字面值。那两行没有别的守门——mac 那条连 #20 都盖不到——而一跑就会把本机真装的 Zebar 起来，所以只能盯字面值防手滑，真的跑通仍归人手验收。读包源码来断言在本仓库有先例（`tests/test_scan.py` 的禁用名那条）。
+
+**白名单**：`launch.py` 不需要被资源服务器服务（它不是页面请求的资源），但放在包目录里随 README 那一条安装命令走。现有 `includeFiles` 的 `*.py` 本来就覆盖它，不用改 `zpack.json`；`privileges.shellCommands` 也不用动——那是页面调扫描脚本的口子，唤起脚本从卡片外面跑。
+
+**Zebar 已在跑与没在跑，命令的返回不一样**：Zebar 3.3.1 的第二个实例把参数发给原实例后立刻退出（`setup_single_instance`），所以卡片已开时命令马上回来；Zebar 没在跑时，这个进程自己变成宿主，要等 Zebar 退出才返回。透传退出码是 #15 的验收项，所以这里不改成后台起进程，代价写在 README 里：Windows 的快捷方式只是多一个后台 `pythonw` 陪着宿主；**mac 的 `.command` 会让那扇终端窗口一直开着，关掉它会把 Zebar 一起关掉**。没拿 `nohup ... &` 把它甩开，是因为 mac 上一行都没实机跑过，不想交一个没验过的花招；这一条进 mac 交付票。
+
+**那句「没找到 Zebar」在快捷方式上差点没人看见**：Windows 的快捷方式指 `pythonw.exe`（同一个 `python` 旁边那个，没有才退回 `python`），图的是不闪控制台窗口，但 `pythonw` 下 `sys.stdout` 是 `None`，照直 `print` 会崩，加个判空则是静悄悄退 1、律师什么都看不到。所以 `say()` 在没有 stdout 时于 Windows 上弹一个提示框。测试里 stdout 永远是管道，走不到弹框那一支，不会把测试挂在一个模态框上。
+
+- Python 3.9.25：全套 36 条 unittest 通过、零 skip（新增 9 条）；`compileall` 与 `git diff --check` 通过；仓库无独立类型检查器。八条行为测试先在没有 `launch.py` 的树上跑红，再转绿。
+- 源码禁用名那条测试自动覆盖 `launch.py`（它按后缀遍历整个包），继续通过。
+- README 的 Windows 快捷方式命令已在本机跑过，只是把 `.lnk` 写进临时目录而不是桌面：目标、参数、工作目录三项回读正确。mac 那条只做了 `sh` 语法检查，没有实机跑过。
+- 人手验收（关掉卡片后跑脚本、再跑一次、Zebar 退出后跑）归 #20，本票不代跑：跑一次就会在律师桌面上开窗。
 
 ## #21 当前模块改成当前节点所在的模块
 

@@ -53,6 +53,40 @@ mac 示例：
 
 测试、显式开发预览与验收进度见[开发说明](docs/development.md)。第三方代码的固定版本、来源和许可证见[随包客户端](widget/vendor/README.md)。
 
+## 打开卡片
+
+三个入口都落到包里同一条命令（`launch.py`）：宿主没开就连宿主一起拉起，卡片**已经开着（含最小化）时什么都不发生**——不聚焦、不还原、不多开一扇。最小化了要从 Windows 任务栏 / mac 程序坞还原，这条命令做不到（[ADR-0001](docs/adr/0001-唤起走宿主cli-语义只是没开就开-命令归本仓库-skill侧另立adr.md)）。
+
+**一、随宿主启动。** 勾一次就行，推荐先做这个：右键托盘里的 Zebar 图标 → `Widget packs` → `loo0ng` → `案件卡片` → 勾上 `Run on startup`。以后登录即在，下面两条留给「关过了想立刻开回来」。
+
+**二、桌面快捷方式。** 装好组件包之后跑一次，桌面上就多一个「打开案件卡片」。
+
+Windows：打开 **PowerShell**，整行粘贴：
+
+```powershell
+& { $ErrorActionPreference = 'Stop'; $target = Join-Path $env:USERPROFILE '.glzr\zebar\loo0ng\launch.py'; if (-not (Test-Path -LiteralPath $target)) { throw "Not installed: $target" }; $py = (Get-Command python).Source; $quiet = Join-Path (Split-Path $py) 'pythonw.exe'; if (Test-Path -LiteralPath $quiet) { $py = $quiet }; $link = (New-Object -ComObject WScript.Shell).CreateShortcut((Join-Path ([Environment]::GetFolderPath('Desktop')) '打开案件卡片.lnk')); $link.TargetPath = $py; $link.Arguments = '"' + $target + '"'; $link.WorkingDirectory = (Split-Path $target); $link.Save(); Write-Output "Created: $($link.FullName)" }
+```
+
+mac：打开**终端**，整行粘贴（此命令尚未在 mac 验收）：
+
+```sh
+( set -eu; target="$HOME/.glzr/zebar/loo0ng/launch.py"; [ -f "$target" ] || { printf 'Not installed: %s\n' "$target" >&2; exit 1; }; link="$HOME/Desktop/打开案件卡片.command"; printf '#!/bin/sh\nexec /usr/bin/python3 "$HOME/.glzr/zebar/loo0ng/launch.py"\n' > "$link"; chmod +x "$link"; printf 'Created: %s\n' "$link" )
+```
+
+**三、对 agent 说一句。** 照抄这句——Windows：
+
+> 跑一下 `python ~/.glzr/zebar/loo0ng/launch.py`，把案件卡片打开。
+
+mac：
+
+> 跑一下 `python3 ~/.glzr/zebar/loo0ng/launch.py`，把案件卡片打开。
+
+Windows 上 agent 认不出 `~` 就把路径写成 `%USERPROFILE%\.glzr\zebar\loo0ng\launch.py`。
+
+没装 Zebar 时脚本只说一句「没找到 Zebar：先去 https://github.com/glzr-io/zebar 装一个，再跑这条命令。」并以非零码退出，不刷一串错误；桌面快捷方式走的是不带控制台的 `pythonw`，那里这句话改用一个提示框说。
+
+**Zebar 当时没在跑，这条命令会自己变成宿主进程**：卡片照样出来，但命令要等 Zebar 退出才返回。三个入口各受什么影响：桌面快捷方式在 Windows 上没有窗口，只是多一个后台 `pythonw` 陪着 Zebar，不碍事；**mac 的 `.command` 会让那扇终端窗口一直开着，关掉它会把 Zebar 一起关掉**（这一条尚未在 mac 实机验过）；agent 那一句若因此卡住，让它把命令放到后台再继续。勾了上面第一条「Run on startup」，平时就碰不到这种情形。
+
 ## 案件数据
 
 这个仓库永不包含任何真实案件材料。单测使用 `tests/` 中手写的合成视图；宿主验收使用 loo0ng-skills 仓库 `evals/种子/` 回放出的合成工作区。
