@@ -1,2 +1,0 @@
-/* esm.sh - luxon@3.4.4/src/zone */
-var t=class extends Error{};var e=class extends t{constructor(){super("Zone is an abstract class")}};var o=class{get type(){throw new e}get name(){throw new e}get ianaName(){return this.name}get isUniversal(){throw new e}offsetName(s,n){throw new e}formatOffset(s,n){throw new e}offset(s){throw new e}equals(s){throw new e}get isValid(){throw new e}};export{o as default};

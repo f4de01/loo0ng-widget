@@ -7,25 +7,22 @@
   <link rel="stylesheet" href="./style.css">
 </head>
 <body>
-  <main>
-    <header>
-      <div class="window-controls" aria-label="窗口">
-        <button id="minimize" type="button" aria-label="最小化" title="最小化" disabled><span aria-hidden="true">−</span></button>
-        <button id="close" type="button" aria-label="关闭" title="关闭" disabled><span aria-hidden="true">×</span></button>
-      </div>
-      <div class="header-content">
-        <div><span class="eyebrow">loo0ng</span><h1>在办案件 <span id="count">—</span></h1></div>
-        <time id="scanned">尚未扫描</time>
-      </div>
-    </header>
-    <p id="window-error" role="alert" hidden></p>
-    <p id="error" role="alert" hidden></p>
-    <p id="settings-error" role="alert" hidden></p>
-    <section id="rows" aria-label="案件"></section>
-    <section id="unreadable" aria-label="读不出"></section>
-    <footer><button id="refresh" type="button">扫一次</button><span id="status" role="status">正在连接</span></footer>
-    <label id="development" hidden>开发预览：载入扫描结果 <input id="preview" type="file" accept="application/json,.json"></label>
-  </main>
+  <!-- 透明窗上一张自绘的圆角卡片（ADR-0004）：柔投影画在卡片外那圈透明边距里。 -->
+  <div class="card">
+    <div class="win-controls" aria-label="窗口">
+      <button id="minimize" type="button" aria-label="最小化" title="最小化" disabled><span aria-hidden="true">−</span></button>
+      <button id="close" type="button" aria-label="关闭" title="关闭" disabled><span aria-hidden="true">×</span></button>
+    </div>
+    <div class="top" id="top"><span id="heading">在办案件 <span id="count">—</span></span></div>
+    <p class="banner" id="window-error" role="alert" hidden></p>
+    <p class="banner" id="scan-error" role="alert" hidden></p>
+    <section class="page" aria-label="清单页">
+      <div id="rows"></div>
+      <div id="unreadable"></div>
+      <p class="guide" id="settings-error" role="alert" hidden></p>
+    </section>
+  </div>
+  <label id="development" hidden>开发预览：载入扫描结果 <input id="preview" type="file" accept="application/json,.json"></label>
   <script type="module" src="./app.js"></script>
 </body>
 </html>

@@ -13,7 +13,7 @@
     "shownInTaskbar": true,
     "focused": true,
     "resizable": true,
-    "transparent": false,
+    "transparent": true,
     "includeFiles": ["*.html", "*.css", "*.js", "*.py", "vendor/**"],
     "caching": {"defaultDuration": 0, "rules": []},
     "privileges": {
@@ -24,7 +24,7 @@
     },
     "presets": [{
       "name": "默认", "anchor": "top_right", "offsetX": "24px", "offsetY": "24px",
-      "width": "460px", "height": "420px", "monitorSelection": {"type": "primary"},
+      "width": "440px", "height": "620px", "monitorSelection": {"type": "primary"},
       "dockToEdge": {"enabled": false, "edge": null, "windowMargin": "0px"}
     }]
   }]

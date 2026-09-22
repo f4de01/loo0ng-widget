@@ -1,9 +1,33 @@
 // Window behavior is independent of scanning and only stores window coordinates.
+// 材质（ADR-0004）：底是透明窗上自绘的圆角卡片；系统模糊只是可降级的增强，
+// 只在它能贴着这张卡片的形状、而且有人在那个平台上真看见过的时候，才往这张表里写一行——
+// `setEffects` 返回成功不等于看得见（#13：mica 成功但毫无变化，blur 成功但整窗变深灰黑）。
+// Windows：Acrylic 把整个窗口矩形连同圆角外的四个角磨砂成一块方板，看过截图后裁定不要。
+// mac：挑哪一种材质、贴不贴得住圆角，归 mac 交付票在实机上看，看过再加一行。
+// 表里没有这个平台就一次都不调，卡片停在自绘那层：不报错、不留痕。
+const MATERIAL = {};
+
+async function applyMaterial(win) {
+  const wanted = MATERIAL[document.body.classList.contains('mac') ? 'mac' : 'win'];
+  if (!wanted) return;
+  try {
+    // 系统材质自己的圆角跟着卡片走，不然磨砂会从卡片的圆角外冒出来。
+    const radius = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--radius'));
+    await win.setEffects(Number.isFinite(radius) ? { ...wanted, radius } : wanted);
+    // 调上了才把底色降到 60%，让桌面的模糊透出来。
+    document.documentElement.dataset.blur = '1';
+  } catch {
+    // 失败一言不发：停在自绘的那一层。
+  }
+}
+
 export async function setupWindow(zebar, reportError) {
   const { PhysicalPosition } = await import('./vendor/tauri-apps_api2.0.2_es2022_dpi.js');
   const widget = zebar.currentWidget();
   const win = widget.tauriWindow;
-  const header = document.querySelector('header');
+  applyMaterial(win);
+  // 顶行是这一版的拖动把手；整卡可拖归 #17。
+  const handle = document.querySelector('#top');
   const minimize = document.querySelector('#minimize');
   const close = document.querySelector('#close');
   const key = 'loo0ng.window-position';
@@ -65,26 +89,26 @@ export async function setupWindow(zebar, reportError) {
     if (!drag) return;
     const pointerId = drag.pointerId;
     drag = null;
-    header.classList.remove('dragging');
-    if (header.hasPointerCapture(pointerId)) header.releasePointerCapture(pointerId);
+    handle.classList.remove('dragging');
+    if (handle.hasPointerCapture(pointerId)) handle.releasePointerCapture(pointerId);
   }
 
   // pointerdown is the captured counterpart of mousedown: no import or await here.
-  header.addEventListener('pointerdown', event => {
-    if (event.button !== 0 || event.target.closest('.window-controls') || moving || target) return;
+  handle.addEventListener('pointerdown', event => {
+    if (event.button !== 0 || event.target.closest('.win-controls') || moving || target) return;
     event.preventDefault();
-    header.setPointerCapture(event.pointerId);
+    handle.setPointerCapture(event.pointerId);
     drag = { pointerId: event.pointerId, screenX: event.screenX, screenY: event.screenY,
       x: position.x, y: position.y, scale: window.devicePixelRatio || 1 };
-    header.classList.add('dragging');
+    handle.classList.add('dragging');
   });
-  header.addEventListener('pointermove', event => {
+  handle.addEventListener('pointermove', event => {
     if (!(event.buttons & 1)) { finish(); return; }
     update(event);
   });
-  header.addEventListener('pointerup', event => { update(event); finish(); });
-  header.addEventListener('pointercancel', finish);
-  header.addEventListener('lostpointercapture', finish);
+  handle.addEventListener('pointerup', event => { update(event); finish(); });
+  handle.addEventListener('pointercancel', finish);
+  handle.addEventListener('lostpointercapture', finish);
   window.addEventListener('blur', finish);
 
   async function settle() {
@@ -104,5 +128,5 @@ export async function setupWindow(zebar, reportError) {
   });
   minimize.disabled = false;
   close.disabled = false;
-  header.classList.add('draggable');
+  handle.classList.add('draggable');
 }

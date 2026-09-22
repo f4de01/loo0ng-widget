@@ -1,48 +1,141 @@
-:root { color-scheme: light; font-family: "Segoe UI", "Microsoft YaHei", sans-serif; color: #283c36; background: #f3f2ec; }
+/* 变量表取原型票（#13）定的 A 纸那一套，尺度、圆角、字号与原型同源；
+   不做深色模式，以后改的是这一组值。颜色不是状态的唯一载体：形状先说话。 */
+:root {
+  --radius: 18px; --pad: 16px; --margin: 12px;
+  --font: -apple-system, "PingFang SC", "Segoe UI", "Microsoft YaHei", sans-serif;
+  --fs-title: 15px; --fs-body: 13px; --fs-secondary: 12px; --fs-min: 11px;
+  --shadow: 0 8px 24px rgba(0, 0, 0, .12);
+  --card-alpha: .9;
+  --dot: 12px;
+  --ease: 180ms ease-out;
+  --card-rgb: 243, 242, 236;
+  --ink: #283c36; --ink-2: #5f6f66; --ink-3: #717f76;
+  --line-soft: #e7e8e1;
+  --confirmed: #3d6a54; --generated: #8fb2a0; --unstarted: #a6b0a9; --unstarted-bg: #e2e5df;
+  --na: #d7d9d2; --na-slash: #a2a79f;
+  --amber: #b5761f;
+  --hover: rgba(40, 60, 54, .06); --scroll-thumb: rgba(40, 60, 54, .22);
+  --error-ink: #974c35; --error-bg: #f1e6dc;
+  color-scheme: light;
+}
+/* 系统模糊调上了才降到 60% 让桌面的模糊透出来；没调上就停在 90% 的自绘层。
+   preview 是开发预览里的模拟档（?dev=1&blur=1）：宿主里没有系统模糊时也能看一眼那层。 */
+html[data-blur="1"], html[data-blur="preview"] { --card-alpha: .6; }
+
 * { box-sizing: border-box; }
-body { margin: 0; }
-main { min-height: 100vh; padding: 22px; }
-header { display: flex; flex-direction: column; gap: 12px; padding-bottom: 18px; border-bottom: 1px solid #d4d9d0; user-select: none; touch-action: none; }
-.header-content { display: flex; justify-content: space-between; align-items: end; gap: 16px; width: 100%; }
-header.draggable { cursor: grab; }
-header.dragging { cursor: grabbing; }
-.window-controls { display: flex; flex: none; cursor: default; }
-.window-controls button { display: grid; place-items: center; padding: 0; border: 0; border-radius: 0; background: transparent; font: 18px/1 "Segoe UI", sans-serif; }
-body.win .window-controls { align-self: flex-end; margin: -22px -22px 0 0; }
-body.win .window-controls button { width: 44px; height: 32px; }
-body.win #minimize:hover { background: #dce0d6; }
-body.win #close:hover { color: white; background: #c42b1c; }
-body.mac .window-controls { align-self: flex-start; gap: 8px; }
-body.mac .window-controls button { width: 14px; height: 14px; border-radius: 50%; font-size: 12px; color: #492c22; }
+html, body { margin: 0; height: 100%; background: transparent; }
+body {
+  font: var(--fs-body)/1.45 var(--font); color: var(--ink);
+  user-select: none; -webkit-user-select: none; overflow: hidden;
+}
+
+/* 卡片：内边距里的内容自己滚，窗不长高；投影落在 --margin 那圈透明边距上。
+   那圈边距仍是页面的一部分，点得到、拖得动，不会穿透到桌面。 */
+.card {
+  position: absolute; inset: var(--margin);
+  display: flex; flex-direction: column;
+  border-radius: var(--radius);
+  background: rgba(var(--card-rgb), var(--card-alpha));
+  box-shadow: var(--shadow), 0 0 0 1px rgba(0, 0, 0, .06), inset 0 1px 0 rgba(255, 255, 255, .55);
+  overflow: hidden;
+}
+/* 只有模拟档自己糊一层；真调上系统模糊时桌面已经被系统糊过，页面不再叠第二层。 */
+html[data-blur="preview"] .card { backdrop-filter: blur(24px) saturate(1.2); }
+
+/* 窗口按钮：平时不现，鼠标进卡片或键盘走到才显；位置按平台。 */
+.win-controls {
+  position: absolute; top: 6px; right: 6px; z-index: 5; display: flex; gap: 2px;
+  opacity: 0; transition: opacity var(--ease);
+}
+.card:hover .win-controls, .win-controls:focus-within { opacity: 1; }
+.win-controls button {
+  width: 28px; height: 22px; padding: 0; border: 0; border-radius: 6px; background: transparent;
+  color: var(--ink-3); font: 16px/1 var(--font); cursor: default;
+}
+.win-controls button:hover { background: var(--hover); color: var(--ink); }
+.win-controls button:disabled { opacity: .4; }
+body.mac .win-controls { left: 8px; right: auto; top: 8px; gap: 8px; }
+body.mac .win-controls button { width: 12px; height: 12px; border-radius: 50%; font-size: 10px; color: #492c22; }
 body.mac #close { order: -1; background: #ff5f57; }
 body.mac #minimize { background: #febc2e; }
-body.mac .window-controls span { visibility: hidden; }
-body.mac .window-controls:hover span, body.mac .window-controls button:focus-visible span { visibility: visible; }
-.eyebrow { font-size: 11px; letter-spacing: .18em; color: #78867d; }
-h1 { margin: 6px 0 0; font-size: 20px; font-weight: 600; }
-#count { margin-left: 6px; font-size: 14px; color: #728176; }
-time { max-width: 175px; font-size: 11px; color: #78867d; overflow-wrap: anywhere; text-align: right; }
-.case { padding: 14px 0; border-bottom: 1px solid #dce0d6; }
-.case-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
-h2 { margin: 0; font-size: 15px; font-weight: 600; overflow-wrap: anywhere; }
-.progress { white-space: nowrap; font-variant-numeric: tabular-nums; font-size: 14px; }
-.bar { display: flex; height: 4px; margin: 10px 0 9px; border-radius: 2px; background: #e6e9e0; overflow: hidden; }
-.segment { flex-basis: 0; }
-.segment-confirmed { background: #365845; }
-.segment-made { background: #7f9c87; }
-.segment-none { background: #ccd6c6; }
-.segment-skip { background: #b9bcb4; }
-.current { display: flex; align-items: center; gap: 7px; margin: 0; font-size: 12px; line-height: 1.6; color: #4d5c53; }
-.current-text { overflow-wrap: anywhere; }
-.circle { flex: none; width: 10px; height: 10px; border: 1.5px solid #365845; border-radius: 50%; }
-.circle-made { background: linear-gradient(90deg, #365845 50%, transparent 50%); }
-.circle-confirmed { background: #365845; }
-.circle-skip { border-color: #b9bcb4; background: linear-gradient(45deg, transparent 43%, #b9bcb4 43%, #b9bcb4 57%, transparent 57%); }
-.circle-alert { box-shadow: 0 0 0 2px #e0a458; }
-#error, #window-error, #settings-error, .unreadable { color: #974c35; background: #f4e8df; padding: 12px; font-size: 12px; line-height: 1.7; overflow-wrap: anywhere; }
-footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-top: 16px; font-size: 11px; color: #78867d; }
-button { color: #365845; background: #e3e9dc; border: 1px solid #cdd8c7; border-radius: 5px; padding: 7px 14px; font: inherit; font-size: 12px; cursor: pointer; }
-button:disabled { cursor: wait; opacity: .6; }
-button:focus-visible, input:focus-visible { outline: 2px solid #365845; outline-offset: 3px; }
-#development { font-size: 12px; margin-top: 16px; }
+/* mac 的红绿灯平时不写字，鼠标停在这一组上才现出 − 与 ×（沿用 #7）。 */
+body.mac .win-controls span { visibility: hidden; }
+body.mac .win-controls:hover span, body.mac .win-controls button:focus-visible span { visibility: visible; }
+
+/* 顶行也是拖动把手（整卡可拖是 #17）；给窗口按钮让出它那一角。 */
+.top {
+  flex: none; display: flex; align-items: center; height: 26px;
+  padding: 4px var(--pad) 0; font-size: var(--fs-min); letter-spacing: .12em; color: var(--ink-3);
+  touch-action: none;
+}
+.top.draggable { cursor: grab; }
+.top.dragging { cursor: grabbing; }
+body.win .top { padding-right: 62px; }
+body.mac .top { padding-left: 56px; }
+
+/* 页内滚动，滚动条悬浮才现：平时轨道与滑块都是透明的，不占一条常驻的灰边。 */
+.page {
+  flex: 1; min-height: 0; overflow-y: auto;
+  padding: 4px var(--pad) var(--pad);
+  scrollbar-width: thin; scrollbar-color: transparent transparent;
+}
+.page:hover { scrollbar-color: var(--scroll-thumb) transparent; }
+
+/* 清单页：一案三层。 */
+.case-row {
+  margin: 0 calc(var(--pad) * -1); padding: 10px var(--pad) 11px;
+  border-bottom: 1px solid var(--line-soft);
+}
+.case-row .name { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.case-row h2 { margin: 0; font-size: var(--fs-title); font-weight: 600; overflow-wrap: anywhere; }
+.count { font-variant-numeric: tabular-nums; font-size: var(--fs-secondary); color: var(--ink-2); white-space: nowrap; }
+.case-row .now {
+  display: flex; align-items: center; gap: 8px; margin-top: 7px; min-width: 0;
+  font-size: var(--fs-secondary); color: var(--ink-2);
+}
+.case-row .now span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* 分段进度条：四段的宽度比就是四个计数之比，由 flex-grow 画；计数为 0 的那段扫描脚本给 0，页面不画它。
+   空图（四个计数全是 0）没有任何一段，留一条空槽，免得那一行整条消失。 */
+.bar { display: flex; gap: 2px; height: 5px; margin-top: 8px; border-radius: 3px; overflow: hidden; }
+.bar:empty { background: var(--unstarted-bg); }
+.bar i { display: block; flex-basis: 0; border-radius: 2px; }
+.bar .s-confirmed { background: var(--confirmed); }
+.bar .s-generated { background: var(--generated); }
+.bar .s-unstarted { background: var(--unstarted-bg); }
+.bar .s-na { background: repeating-linear-gradient(135deg, var(--na) 0 2px, var(--na-slash) 2px 3px); }
+
+/* 五态编码：未生成空心、已生成半实、已确认实心、不适用淡灰带斜线、高亮未清再加一圈琥珀。 */
+.dot {
+  flex: none; width: var(--dot); height: var(--dot);
+  border: 1.5px solid var(--unstarted); border-radius: 50%; background: transparent;
+}
+.dot.s-generated { border-color: var(--confirmed); background: linear-gradient(90deg, var(--confirmed) 50%, transparent 50%); }
+.dot.s-confirmed { border-color: var(--confirmed); background: var(--confirmed); }
+.dot.s-na { border-color: var(--na); background: linear-gradient(135deg, var(--na) 42%, var(--na-slash) 42% 58%, var(--na) 58%); }
+.dot.attention { box-shadow: 0 0 0 1.5px rgba(var(--card-rgb), 1), 0 0 0 3px var(--amber); }
+
+/* 错误只在发生时现身。读不出：排在案件之后的暗色行，只写目录名与原因。 */
+.unreadable {
+  margin: 6px calc(var(--pad) * -1) 0; padding: 8px var(--pad);
+  background: var(--hover); color: var(--ink-3);
+  font-size: var(--fs-secondary); overflow-wrap: anywhere;
+}
+.unreadable b { color: var(--ink-2); font-weight: 500; }
+/* 一轮扫描失败：顶部一条横幅，下一轮成功即消失，中间的画面留着。
+   设置没填好：整页只剩那段可照做的指引。两样同一种底。 */
+.banner, .guide {
+  background: var(--error-bg); color: var(--error-ink);
+  font-size: var(--fs-secondary); overflow-wrap: anywhere;
+}
+.banner { flex: none; margin: 4px var(--pad) 0; padding: 7px 10px; border-radius: 8px; line-height: 1.6; }
+.guide { margin: 10px 0 0; padding: 12px 14px; border-radius: 10px; line-height: 1.7; }
+
+/* 显式开发预览通道（?dev=1）：宿主里永远 hidden。 */
+#development {
+  position: fixed; left: 12px; bottom: 12px;
+  font-size: var(--fs-min); color: var(--ink-2);
+  background: rgba(var(--card-rgb), .9); padding: 4px 8px; border-radius: 8px;
+}
+button:focus-visible, input:focus-visible { outline: 2px solid var(--confirmed); outline-offset: 2px; }
 [hidden] { display: none !important; }
