@@ -1,3 +1,4 @@
+from datetime import datetime
 import json
 import os
 from pathlib import Path
@@ -9,6 +10,25 @@ import unittest
 
 PACKAGE = Path(__file__).resolve().parents[1] / "widget"
 EMPTY = {"格式版本": 2, "生成时间": "2026-09-16T12:00:00+08:00", "模块": [], "前方": []}
+THIS_YEAR = datetime.now().astimezone().year
+MADE_AT = "{}-09-21T15:04:05+08:00".format(THIS_YEAR)
+CONFIRMED_AT = "{}-09-22T09:00:00+08:00".format(THIS_YEAR)
+ANOTHER_YEAR = "2019-01-05T08:00:00+08:00"
+
+
+def made(title, highlight="未清", at=MADE_AT, **extra):
+    """引擎给已生成节点写的那一份最近生成，测试只补它要的几个键。"""
+    return {"标题": title, "状态": "已生成", "高亮": highlight,
+            "最近生成": dict({"次数": 1, "时间": at, "来源": "agent"}, **extra)}
+
+
+def confirmed(title, highlight="已清", at=CONFIRMED_AT):
+    return {"标题": title, "状态": "已确认", "高亮": highlight,
+            "最近确认": {"时间": at, "原话": "确认 " + title}}
+
+
+def counts(总数=0, 未生成=0, 已生成=0, 已确认=0, 不适用=0):
+    return {"总数": 总数, "未生成": 未生成, "已生成": 已生成, "已确认": 已确认, "不适用": 不适用}
 
 
 class ScanTests(unittest.TestCase):
@@ -47,17 +67,15 @@ class ScanTests(unittest.TestCase):
         view = {
             **EMPTY,
             "模块": [
-                {"标题": "已结束", "状态": "已完成", "节点": [
-                    {"标题": "甲", "状态": "已确认", "高亮": "已清"}]},
+                {"标题": "已结束", "状态": "已完成", "节点": [confirmed("甲")]},
                 {"标题": "当前", "状态": "进行中", "节点": [
-                    {"标题": "乙", "状态": "已生成", "高亮": "未清"},
-                    {"标题": "丙", "状态": "未生成", "高亮": "无文书"}]},
+                    made("乙"),
+                    {"标题": "丙", "状态": "未生成", "高亮": "无文书",
+                     "时限": "雨季之前（合成示例）"}]},
                 {"标题": "稍后", "状态": "进行中", "节点": [
                     {"标题": "丁", "状态": "不适用", "高亮": "已清"}]},
             ],
-            "前方": [{"标题": "当前", "节点": [
-                {"标题": "丙", "时限": "雨季之前（合成示例）"}, {"标题": "戊"}]},
-                {"标题": "稍后", "节点": [{"标题": "己"}]}],
+            "前方": [{"标题": "当前", "节点": [{"标题": "丙", "时限": "雨季之前（合成示例）"}]}],
         }
         path = self.case("甲", view)
         row = self.scan("--根", self.root)["行"][0]
@@ -65,11 +83,89 @@ class ScanTests(unittest.TestCase):
         self.assertEqual(row["生成时间"], EMPTY["生成时间"])
         self.assertEqual(row["当前模块"], "当前")
         self.assertEqual(row["下一个"], "丙")
-        self.assertEqual(row["待看"], ["乙"])
-        self.assertEqual(row["进度"], {"总数": 4, "未生成": 1, "已生成": 1, "已确认": 1, "不适用": 1})
-        self.assertEqual(row["前方"], [
-            {"模块": "当前", "节点": "丙", "时限": "雨季之前（合成示例）"},
-            {"模块": "当前", "节点": "戊"}, {"模块": "稍后", "节点": "己"}])
+        self.assertEqual(row["待看数"], 1)
+        self.assertNotIn("待看", row)
+        self.assertEqual(row["进度"], counts(总数=4, 未生成=1, 已生成=1, 已确认=1, 不适用=1))
+        self.assertEqual(row["当前节点"], {"标题": "乙", "状态": "已生成", "高亮": "未清"})
+        self.assertEqual(row["模块"], [
+            {"标题": "已结束", "状态": "已完成", "进度": counts(总数=1, 已确认=1),
+             "节点": [{"标题": "甲", "状态": "已确认", "高亮": "已清",
+                     "时间": CONFIRMED_AT, "时间显示": "9月22日"}]},
+            {"标题": "当前", "状态": "进行中", "进度": counts(总数=2, 未生成=1, 已生成=1),
+             "节点": [{"标题": "乙", "状态": "已生成", "高亮": "未清",
+                     "时间": MADE_AT, "时间显示": "9月21日"},
+                    {"标题": "丙", "状态": "未生成", "高亮": "无文书",
+                     "时限": "雨季之前（合成示例）"}]},
+            {"标题": "稍后", "状态": "进行中", "进度": counts(总数=1, 不适用=1),
+             "节点": [{"标题": "丁", "状态": "不适用", "高亮": "已清"}]},
+        ])
+
+    def test_each_module_counts_its_own_nodes_and_empty_modules_stay(self):
+        self.case("甲", {**EMPTY, "模块": [
+            {"标题": "甲模块", "状态": "进行中", "节点": [
+                made("甲"), {"标题": "乙", "状态": "未生成", "高亮": "无文书"}]},
+            {"标题": "乙模块", "状态": "进行中", "节点": []},
+            {"标题": "丙模块", "状态": "已完成", "节点": [confirmed("丙")]}],
+            "前方": [{"标题": "甲模块", "节点": [{"标题": "乙"}]}]})
+        row = self.scan("--根", self.root)["行"][0]
+        self.assertEqual([module["标题"] for module in row["模块"]], ["甲模块", "乙模块", "丙模块"])
+        self.assertEqual([module["进度"] for module in row["模块"]], [
+            counts(总数=2, 未生成=1, 已生成=1), counts(), counts(总数=1, 已确认=1)])
+        self.assertEqual(row["模块"][1]["节点"], [])
+        self.assertEqual(row["进度"], counts(总数=3, 未生成=1, 已生成=1, 已确认=1))
+
+    def test_node_time_follows_state_and_arrives_preformatted(self):
+        self.case("甲", {**EMPTY, "模块": [{"标题": "甲模块", "状态": "进行中", "节点": [
+            dict(confirmed("甲"), 最近生成={"次数": 2, "时间": MADE_AT, "来源": "agent"}),
+            made("乙"),
+            {"标题": "丙", "状态": "未生成", "高亮": "无文书"},
+            {"标题": "丁", "状态": "不适用", "高亮": "已清",
+             "最近生成": {"次数": 1, "时间": MADE_AT, "来源": "agent"}}]}],
+            "前方": [{"标题": "甲模块", "节点": [{"标题": "丙"}]}]})
+        甲, 乙, 丙, 丁 = self.scan("--根", self.root)["行"][0]["模块"][0]["节点"]
+        self.assertEqual((甲["时间"], 甲["时间显示"]), (CONFIRMED_AT, "9月22日"))
+        self.assertEqual((乙["时间"], 乙["时间显示"]), (MADE_AT, "9月21日"))
+        for node in (丙, 丁):
+            with self.subTest(节点=node["标题"]):
+                self.assertNotIn("时间", node)
+                self.assertNotIn("时间显示", node)
+
+    def test_time_display_carries_the_year_only_across_years(self):
+        self.case("甲", {**EMPTY, "模块": [{"标题": "甲模块", "状态": "进行中", "节点": [
+            made("甲", at=ANOTHER_YEAR)]}]})
+        node = self.scan("--根", self.root)["行"][0]["模块"][0]["节点"][0]
+        self.assertEqual((node["时间"], node["时间显示"]), (ANOTHER_YEAR, "2019年1月5日"))
+
+    def test_deadline_rides_along_only_when_the_engine_wrote_one(self):
+        self.case("甲", {**EMPTY, "模块": [{"标题": "甲模块", "状态": "进行中", "节点": [
+            {"标题": "甲", "状态": "未生成", "高亮": "无文书", "时限": "雨季之前（合成示例）"},
+            {"标题": "乙", "状态": "未生成", "高亮": "无文书"}]}],
+            "前方": [{"标题": "甲模块", "节点": [
+                {"标题": "甲", "时限": "雨季之前（合成示例）"}, {"标题": "乙"}]}]})
+        甲, 乙 = self.scan("--根", self.root)["行"][0]["模块"][0]["节点"]
+        self.assertEqual(甲["时限"], "雨季之前（合成示例）")
+        self.assertNotIn("时限", 乙)
+
+    def test_current_node_takes_the_first_generated_then_the_next_one(self):
+        generated = {**EMPTY, "模块": [
+            {"标题": "甲模块", "状态": "进行中", "节点": [
+                {"标题": "甲", "状态": "未生成", "高亮": "无文书"}, made("乙")]},
+            {"标题": "乙模块", "状态": "进行中", "节点": [made("丙", highlight="已清")]}],
+            "前方": [{"标题": "甲模块", "节点": [{"标题": "甲"}]}]}
+        ahead_only = {**EMPTY, "模块": [{"标题": "甲模块", "状态": "进行中", "节点": [
+            confirmed("甲"), {"标题": "乙", "状态": "未生成", "高亮": "无文书"},
+            {"标题": "丙", "状态": "未生成", "高亮": "无文书"}]}],
+            "前方": [{"标题": "甲模块", "节点": [{"标题": "乙"}, {"标题": "丙"}]}]}
+        finished = {**EMPTY, "模块": [{"标题": "甲模块", "状态": "已完成", "节点": [confirmed("甲")]}]}
+        self.case("甲", generated)
+        self.case("乙", ahead_only)
+        self.case("丙", finished)
+        rows = {row["目录名"]: row for row in self.scan("--根", self.root)["行"]}
+        self.assertEqual(rows["甲"]["当前节点"], {"标题": "乙", "状态": "已生成", "高亮": "未清"})
+        self.assertEqual(rows["乙"]["当前节点"], {"标题": "乙", "状态": "未生成", "高亮": "无文书"})
+        self.assertEqual(rows["乙"]["下一个"], "乙")
+        self.assertIsNone(rows["丙"]["当前节点"])
+        self.assertIsNone(rows["丙"]["下一个"])
 
     def test_settings_roots_merge_and_explicit_roots_bypass_settings(self):
         one = self.root / "one"
@@ -97,35 +193,37 @@ class ScanTests(unittest.TestCase):
         for row in (done, empty):
             self.assertIsNone(row["当前模块"])
             self.assertIsNone(row["下一个"])
-            self.assertEqual(row["前方"], [])
-            self.assertEqual(row["待看"], [])
-        self.assertEqual(empty["进度"], {"总数": 0, "未生成": 0, "已生成": 0, "已确认": 0, "不适用": 0})
-        self.assertEqual(done["进度"], {"总数": 2, "未生成": 0, "已生成": 0, "已确认": 0, "不适用": 2})
+            self.assertIsNone(row["当前节点"])
+            self.assertEqual(row["待看数"], 0)
+        self.assertEqual(empty["进度"], counts())
+        self.assertEqual(empty["模块"], [])
+        self.assertEqual(done["进度"], counts(总数=2, 不适用=2))
+        self.assertEqual(done["模块"], [
+            {"标题": "结束", "状态": "不适用", "进度": counts(总数=2, 不适用=2), "节点": [
+                {"标题": "甲", "状态": "不适用", "高亮": "无文书"},
+                {"标题": "乙", "状态": "不适用", "高亮": "已清"}]}])
 
     def test_pending_ahead_empty_and_finished_cases_sort_in_four_tiers(self):
         self.case("乙", {**EMPTY, "模块": [{"标题": "甲模块", "状态": "进行中", "节点": [
-            {"标题": "甲", "状态": "已生成", "高亮": "未清"},
-            {"标题": "乙", "状态": "未生成", "高亮": "无文书"}]}],
+            made("甲"), {"标题": "乙", "状态": "未生成", "高亮": "无文书"}]}],
             "前方": [{"标题": "甲模块", "节点": [{"标题": "乙"}]}]})
         self.case("甲", {**EMPTY, "模块": [{"标题": "甲模块", "状态": "进行中", "节点": [
             {"标题": "甲", "状态": "未生成", "高亮": "无文书"}]}],
             "前方": [{"标题": "甲模块", "节点": [{"标题": "甲"}]}]})
         self.case("丙")
-        self.case("丁", {**EMPTY, "模块": [{"标题": "甲模块", "状态": "已完成", "节点": [
-            {"标题": "甲", "状态": "已确认", "高亮": "已清"}]}]})
+        self.case("丁", {**EMPTY, "模块": [{"标题": "甲模块", "状态": "已完成",
+                                         "节点": [confirmed("甲")]}]})
         data = self.scan("--根", self.root)
         self.assertEqual([row["目录名"] for row in data["行"]], ["乙", "甲", "丙", "丁"])
 
     def test_each_tier_uses_chinese_name_order_independent_of_generation_time(self):
         views = [
-            {**EMPTY, "模块": [{"标题": "甲模块", "状态": "进行中", "节点": [
-                {"标题": "甲", "状态": "已生成", "高亮": "未清"}]}]},
+            {**EMPTY, "模块": [{"标题": "甲模块", "状态": "进行中", "节点": [made("甲")]}]},
             {**EMPTY, "模块": [{"标题": "甲模块", "状态": "进行中", "节点": [
                 {"标题": "甲", "状态": "未生成", "高亮": "无文书"}]}],
                 "前方": [{"标题": "甲模块", "节点": [{"标题": "甲"}]}]},
             EMPTY,
-            {**EMPTY, "模块": [{"标题": "甲模块", "状态": "已完成", "节点": [
-                {"标题": "甲", "状态": "已确认", "高亮": "已清"}]}]},
+            {**EMPTY, "模块": [{"标题": "甲模块", "状态": "已完成", "节点": [confirmed("甲")]}]},
         ]
         for view in views:
             with self.subTest(view=view):
@@ -137,23 +235,29 @@ class ScanTests(unittest.TestCase):
                 second = self.scan("--根", self.root)["行"]
                 self.assertEqual([row["路径"] for row in second], [row["路径"] for row in first])
 
-    def test_ahead_keeps_only_first_five_across_modules(self):
-        self.case("甲", {**EMPTY, "前方": [
-            {"标题": "甲模块", "节点": [{"标题": "甲"}, {"标题": "乙"}, {"标题": "丙"}]},
-            {"标题": "乙模块", "节点": [{"标题": "丁"}, {"标题": "戊"}, {"标题": "己"}]}]})
-        row = self.scan("--根", self.root)["行"][0]
-        self.assertEqual(row["下一个"], "甲")
-        self.assertEqual(row["前方"], [
-            {"模块": "甲模块", "节点": "甲"}, {"模块": "甲模块", "节点": "乙"},
-            {"模块": "甲模块", "节点": "丙"}, {"模块": "乙模块", "节点": "丁"},
-            {"模块": "乙模块", "节点": "戊"}])
-
-    def test_output_never_contains_entries(self):
+    def noisy(self):
+        """一份什么都带着的合成视图：条目、生成出来的那些路径、整条前方。"""
         self.case("甲", {**EMPTY, "条目": [{"动作": "确认"}], "模块": [
             {"标题": "甲模块", "状态": "进行中", "条目": [1], "节点": [
-                {"标题": "甲", "状态": "已生成", "高亮": "未清", "条目": [{"动作": "生成"}]}]}],
-            "前方": [{"标题": "乙模块", "条目": [1], "节点": [{"标题": "乙", "条目": [1]}]}]})
-        self.assertNotIn('"条目"', json.dumps(self.scan("--根", self.root), ensure_ascii=False))
+                dict(made("甲", 文书="文书/甲模块/甲/甲.docx",
+                          审查报告="文书/甲模块/甲/甲-审查报告.md"), 条目=[{"动作": "生成"}]),
+                {"标题": "乙", "状态": "未生成", "高亮": "无文书", "条目": []}]}],
+            "前方": [{"标题": "甲模块", "条目": [1], "节点": [{"标题": "乙", "条目": [1]}]}]})
+        return json.dumps(self.scan("--根", self.root), ensure_ascii=False)
+
+    def test_output_never_contains_entries(self):
+        self.assertNotIn('"条目"', self.noisy())
+
+    def test_output_never_contains_documents(self):
+        output = self.noisy()
+        self.assertNotIn('"文书"', output)
+        self.assertNotIn('"审查报告"', output)
+        # 「无文书」是引擎的高亮值，照带；路径一个都不许漏出来。
+        self.assertNotIn(".docx", output)
+        self.assertNotIn("-审查报告.md", output)
+
+    def test_output_never_contains_an_ahead_list(self):
+        self.assertNotIn('"前方"', self.noisy())
 
     def test_source_mentions_only_the_allowed_workspace_filename(self):
         for path in PACKAGE.rglob("*"):
@@ -188,12 +292,14 @@ class ScanTests(unittest.TestCase):
 
     def test_counts_are_ready_for_rendering(self):
         self.case("甲", {**EMPTY, "模块": [{"标题": "甲模块", "状态": "进行中", "节点": [
-            {"标题": "甲", "状态": "已生成", "高亮": "未清"},
-            {"标题": "乙", "状态": "已生成", "高亮": "未清"}]}]})
+            made("甲"), made("乙")]}]})
         self.case("乙")
         data = self.scan("--根", self.root)
         self.assertEqual(data["案件数"], 2)
         self.assertEqual([row["待看数"] for row in data["行"]], [2, 0])
+        for row in data["行"]:
+            with self.subTest(目录名=row["目录名"]):
+                self.assertNotIn("待看", row)
 
     def test_missing_root_does_not_hide_other_roots(self):
         self.case("甲")

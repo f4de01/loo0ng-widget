@@ -7,6 +7,11 @@ import locale
 from pathlib import Path
 import sys
 
+STATES = ("未生成", "已生成", "已确认", "不适用")
+# 引擎把拍板时刻写在这两个字段里，按节点当前的状态各取一个；
+# 未生成与不适用的节点不显示时间，所以两档都不取。
+MOMENT_OF = {"已生成": "最近生成", "已确认": "最近确认"}
+
 
 def display_text(value):
     if not isinstance(value, str):
@@ -14,7 +19,36 @@ def display_text(value):
     return value
 
 
-def aggregate(path, view):
+def format_moment(stamp, this_year):
+    """把引擎写的 ISO 时刻预先格式化成「9月21日」，跨年才带年；页面照印，不算日期。"""
+    try:
+        moment = datetime.fromisoformat(stamp)
+    except ValueError:
+        raise ValueError("机器可读视图里的时刻不是 ISO 8601 文本")
+    if moment.year == this_year:
+        return "{}月{}日".format(moment.month, moment.day)
+    return "{}年{}月{}日".format(moment.year, moment.month, moment.day)
+
+
+def node_row(node, this_year):
+    row = {"标题": display_text(node["标题"]), "状态": display_text(node["状态"]),
+           "高亮": display_text(node["高亮"])}
+    if "时限" in node:
+        row["时限"] = display_text(node["时限"])
+    field = MOMENT_OF.get(row["状态"])
+    if field:
+        row["时间"] = display_text(node[field]["时间"])
+        row["时间显示"] = format_moment(row["时间"], this_year)
+    return row
+
+
+def progress_of(nodes):
+    progress = {state: sum(node["状态"] == state for node in nodes) for state in STATES}
+    progress["总数"] = len(nodes)
+    return progress
+
+
+def aggregate(path, view, this_year):
     version = view["格式版本"]
     if type(version) is not int or version != 2:
         # 1 是工作台早先写过的那一版：图没有升级路径，而这一案多半已经办了一半，
@@ -23,33 +57,31 @@ def aggregate(path, view):
         if type(version) is int and version == 1:
             raise ValueError("老格式（格式版本 1）：这一案工作台不接，照原来的办法办，别对它打起手")
         raise ValueError("机器可读视图的格式版本是 {}，这张卡片只认 2".format(version))
-    modules = view["模块"]
+    modules = []
+    for module in view["模块"]:
+        rows = [node_row(node, this_year) for node in module["节点"]]
+        modules.append({"标题": display_text(module["标题"]), "状态": display_text(module["状态"]),
+                        "进度": progress_of(rows), "节点": rows})
     nodes = [node for module in modules for node in module["节点"]]
-    ahead = view["前方"]
-    preview = []
-    for module in ahead:
-        for node in module["节点"]:
-            item = {"模块": display_text(module["标题"]), "节点": display_text(node["标题"])}
-            if "时限" in node:
-                item["时限"] = display_text(node["时限"])
-            preview.append(item)
-    progress = {state: sum(node["状态"] == state for node in nodes)
-                for state in ("未生成", "已生成", "已确认", "不适用")}
-    progress["总数"] = len(nodes)
-    pending = [display_text(node["标题"]) for node in nodes if node["高亮"] == "未清"]
+    # 引擎的前方装的正是还没生成的那些节点，按图序。下一个与当前节点的后备都指它的第一个，
+    # 所以两个都在图序里取第一个未生成的节点：同一个来源，不会各说各话；
+    # 从模块里取还多带状态与高亮两列，圆圈照它画。
+    ahead = next((node for node in nodes if node["状态"] == "未生成"), None)
+    current = next((node for node in nodes if node["状态"] == "已生成"), None) or ahead
     return {
         "目录名": path.name, "路径": str(path), "生成时间": display_text(view["生成时间"]),
-        "当前模块": next((display_text(module["标题"]) for module in modules if module["状态"] == "进行中"), None),
-        "下一个": display_text(ahead[0]["节点"][0]["标题"]) if ahead and ahead[0]["节点"] else None,
-        "待看": pending, "待看数": len(pending),
-        "前方": preview[:5], "进度": progress,
+        "当前模块": next((module["标题"] for module in modules if module["状态"] == "进行中"), None),
+        "当前节点": {key: current[key] for key in ("标题", "状态", "高亮")} if current else None,
+        "下一个": ahead["标题"] if ahead else None,
+        "待看数": sum(node["高亮"] == "未清" for node in nodes),
+        "进度": progress_of(nodes), "模块": modules,
     }
 
 
 def case_order(row):
-    if row["待看"]:
+    if row["待看数"]:
         tier = 0
-    elif row["前方"]:
+    elif row["下一个"] is not None:
         tier = 1
     elif row["进度"]["总数"] == 0:
         tier = 2
@@ -59,6 +91,7 @@ def case_order(row):
 
 
 def scan(roots, settings):
+    scanned = datetime.now().astimezone()
     rows = []
     errors = []
     for root in roots:
@@ -74,7 +107,7 @@ def scan(roots, settings):
                 if not path.is_dir() or not (path / "图视图.json").is_file():
                     continue
                 view = json.loads((path / "图视图.json").read_text(encoding="utf-8"))
-                rows.append(aggregate(path, view))
+                rows.append(aggregate(path, view, scanned.year))
             except (OSError, ValueError, KeyError, TypeError) as error:
                 if isinstance(error, json.JSONDecodeError):
                     reason = "机器可读视图不是有效的 JSON"
@@ -88,7 +121,7 @@ def scan(roots, settings):
                     reason = "机器可读视图结构不完整或字段类型不正确"
                 errors.append({"目录名": path.name, "路径": str(path), "原因": reason})
     rows.sort(key=case_order)
-    return {"扫描时间": datetime.now().astimezone().isoformat(timespec="seconds"),
+    return {"扫描时间": scanned.isoformat(timespec="seconds"),
             "设置文件": str(settings), "根目录": roots, "行": rows, "读不出": errors,
             "案件数": len(rows)}
 

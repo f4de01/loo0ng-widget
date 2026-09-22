@@ -3,8 +3,9 @@ const unreadable = document.querySelector('#unreadable');
 const errorBox = document.querySelector('#error');
 const status = document.querySelector('#status');
 const refresh = document.querySelector('#refresh');
-let expandedPath = null;
-let expandedDetails = null;
+// 圆圈与分段进度条共用一套编码，这里只把扫描脚本给的状态换成类名，不判定、不计数。
+const SHAPE = {'未生成': 'none', '已生成': 'made', '已确认': 'confirmed', '不适用': 'skip'};
+const SEGMENTS = ['已确认', '已生成', '未生成', '不适用'];
 document.body.classList.add(/Mac|iPhone|iPad/.test(navigator.userAgent) ? 'mac' : 'win');
 // Start local module loading before the first interaction, shared with polling.
 const hostClient = hostState() ? import('./vendor/zebar-3.3.1.js') : null;
@@ -17,6 +18,27 @@ function textElement(tag, text, className) {
   return element;
 }
 
+// 四段的宽度比就是四个计数之比：交给 flex-grow，页面不算比例。
+function segmentedBar(progress) {
+  const bar = document.createElement('div');
+  bar.className = 'bar';
+  bar.setAttribute('aria-hidden', 'true');
+  for (const state of SEGMENTS) {
+    const segment = textElement('span', '', `segment segment-${SHAPE[state]}`);
+    segment.style.flexGrow = String(progress[state]);
+    bar.append(segment);
+  }
+  return bar;
+}
+
+function circle(node) {
+  const dot = textElement('span', '', 'circle');
+  if (SHAPE[node.状态]) dot.classList.add(`circle-${SHAPE[node.状态]}`);
+  if (node.高亮 === '未清') dot.classList.add('circle-alert');
+  dot.setAttribute('aria-hidden', 'true');
+  return dot;
+}
+
 function render(data) {
   const settingsError = document.querySelector('#settings-error');
   settingsError.textContent = data.设置错误?.原因 ?? '';
@@ -24,44 +46,24 @@ function render(data) {
   document.querySelector('#count').textContent = data.案件数;
   document.querySelector('#scanned').textContent = data.扫描时间;
   rows.replaceChildren();
-  expandedDetails = null;
   for (const row of data.行) {
-    const article = document.createElement('details');
+    const article = document.createElement('article');
     article.className = 'case';
-    article.dataset.path = row.路径;
-    article.open = row.路径 === expandedPath;
-    if (article.open) expandedDetails = article;
-    const summary = document.createElement('summary');
-    summary.addEventListener('click', (event) => {
-      event.preventDefault();
-      const open = !article.open;
-      if (expandedDetails) expandedDetails.open = false;
-      article.open = open;
-      expandedDetails = open ? article : null;
-      expandedPath = open ? row.路径 : null;
-    });
     const heading = document.createElement('div');
     heading.className = 'case-heading';
     heading.append(textElement('h2', row.目录名),
       textElement('span', `${row.进度.已确认} / ${row.进度.总数}`, 'progress'));
-    const hint = row.待看数 ? `${row.待看数} 处等你看`
-      : row.进度.总数 === 0 ? '这案的图还是空的'
-      : row.前方.length === 0 ? '没有前方了' : '没有等你看的';
-    summary.append(heading,
-      textElement('p', `当前：${row.当前模块 ?? '无'}　下一个：${row.下一个 ?? '无'}`, 'detail'),
-      textElement('p', hint, row.待看数 ? 'pending attention' : 'pending'));
-    const ahead = document.createElement('ul');
-    ahead.className = 'ahead';
-    ahead.setAttribute('aria-label', '前方');
-    for (const node of row.前方) {
-      const item = textElement('li', `${node.模块} › ${node.节点}`);
-      if ('时限' in node) item.append(textElement('span', node.时限, 'deadline'));
-      ahead.append(item);
+    const current = document.createElement('p');
+    current.className = 'current';
+    if (row.当前节点) {
+      current.append(circle(row.当前节点),
+        textElement('span', `${row.当前模块 ?? '—'} › ${row.当前节点.标题}`, 'current-text'));
+    } else {
+      current.append(textElement('span', '—', 'current-text'));
     }
-    article.append(summary, ahead);
+    article.append(heading, segmentedBar(row.进度), current);
     rows.append(article);
   }
-  expandedPath = expandedDetails?.dataset.path ?? null;
   unreadable.replaceChildren();
   for (const failure of data.读不出) {
     unreadable.append(textElement('p', `${failure.目录名}：${failure.原因}`, 'unreadable'));
