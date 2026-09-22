@@ -15,8 +15,14 @@ def display_text(value):
 
 
 def aggregate(path, view):
-    if type(view["格式版本"]) is not int or view["格式版本"] != 2:
-        raise ValueError("机器可读视图的格式版本是 {}，这张卡片只认 2".format(view["格式版本"]))
+    version = view["格式版本"]
+    if type(version) is not int or version != 2:
+        # 1 是工作台早先写过的那一版：图没有升级路径，而这一案多半已经办了一半，
+        # 对它打起手会把归好的东西挪走，所以这一档只说「不接它、照旧办法办」。
+        # 别的不认识的版本仍旧照实报，该做什么这张卡片答不了。
+        if type(version) is int and version == 1:
+            raise ValueError("老格式（格式版本 1）：这一案工作台不接，照原来的办法办，别对它打起手")
+        raise ValueError("机器可读视图的格式版本是 {}，这张卡片只认 2".format(version))
     modules = view["模块"]
     nodes = [node for module in modules for node in module["节点"]]
     ahead = view["前方"]

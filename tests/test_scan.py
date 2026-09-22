@@ -175,6 +175,17 @@ class ScanTests(unittest.TestCase):
         self.assertIn("只认 2", errors["乙"])
         self.assertIn("JSON", errors["丙"])
 
+    def test_format_version_one_says_what_the_lawyer_can_do(self):
+        """老格式那一档要给出可照做的话，而且不能教他去打起手：那会把已经归好的东西挪走。"""
+        self.case("甲")
+        self.case("乙", {**EMPTY, "格式版本": 1})
+        data = self.scan("--根", self.root)
+        self.assertEqual([row["目录名"] for row in data["行"]], ["甲"])
+        reason = {row["目录名"]: row["原因"] for row in data["读不出"]}["乙"]
+        self.assertIn("1", reason)
+        self.assertIn("别对它打起手", reason)
+        self.assertNotIn("只认 2", reason)
+
     def test_counts_are_ready_for_rendering(self):
         self.case("甲", {**EMPTY, "模块": [{"标题": "甲模块", "状态": "进行中", "节点": [
             {"标题": "甲", "状态": "已生成", "高亮": "未清"},
