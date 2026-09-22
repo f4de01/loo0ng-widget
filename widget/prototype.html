@@ -1,0 +1,28 @@
+<!doctype html>
+<!-- 原型（抛弃式，#13）。三套色值变量表（A 纸 / B 雾 / C 墨）在同一页上切换，?variant= 或 ←→ 键；
+     结构按 #12 固定：清单页、案件页、模块视、矩阵视、悬浮概览、横滑、材质。 -->
+<html lang="zh-CN" data-variant="A">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>在办案件（原型）</title>
+  <link rel="stylesheet" href="./prototype.css">
+</head>
+<body>
+  <div class="card" id="card">
+    <div class="win-controls" aria-label="窗口">
+      <button id="minimize" type="button" aria-label="最小化"><span aria-hidden="true">−</span></button>
+      <button id="close" type="button" aria-label="关闭"><span aria-hidden="true">×</span></button>
+    </div>
+    <div class="track" id="track">
+      <section class="page" id="list" aria-label="清单页"></section>
+      <section class="page" id="case" aria-label="案件页"></section>
+    </div>
+    <div class="pop" id="pop" hidden></div>
+    <div class="diag" id="diag" hidden></div>
+  </div>
+  <div class="switcher" id="switcher"></div>
+  <label id="development" hidden>合成 JSON <input id="preview" type="file" accept="application/json,.json"></label>
+  <script type="module" src="./prototype.js"></script>
+</body>
+</html>
