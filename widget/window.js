@@ -1,11 +1,13 @@
 // Window behavior is independent of scanning and only stores window coordinates.
-// 材质（ADR-0004）：底是透明窗上自绘的圆角卡片；系统模糊只是可降级的增强，
-// 只在它能贴着这张卡片的形状、而且有人在那个平台上真看见过的时候，才往这张表里写一行——
-// `setEffects` 返回成功不等于看得见（#13：mica 成功但毫无变化，blur 成功但整窗变深灰黑）。
-// Windows：Acrylic 把整个窗口矩形连同圆角外的四个角磨砂成一块方板，看过截图后裁定不要。
-// mac：挑哪一种材质、贴不贴得住圆角，归 mac 交付票在实机上看，看过再加一行。
-// 表里没有这个平台就一次都不调，卡片停在自绘那层：不报错、不留痕。
-const MATERIAL = {};
+// 材质（ADR-0004）：底是透明窗上自绘的圆角卡片；系统模糊只是可降级的增强，一个平台一行，
+// 每行只试一种效果，不按「哪个成功用哪个」去探：`setEffects` 返回成功不等于看得见
+// （#13 实测：mica 成功但毫无变化，blur 成功但整窗变深灰黑）。
+// Windows：不给行。Acrylic 把整个窗口矩形连同圆角外的四个角磨砂成一块方板，看过截图后裁定不要。
+// mac：给 underWindowBackground——它是「窗内容背后那一层」，随系统外观走，配 radius 贴住卡片的
+// 圆角；state 取 active，因为这张卡常驻桌面、基本不是活动窗，不能让材质跟着失焦一起淡掉。
+// 这一行尚未在 mac 实机上看过：若它同样盖满整个窗口矩形、或压不住浅色卡片，按同一条标准
+// 由 mac 交付票删掉这一行（删掉即回到自绘那层，别处不用动）。
+const MATERIAL = { mac: { effects: ['underWindowBackground'], state: 'active' } };
 
 async function applyMaterial(win) {
   const wanted = MATERIAL[document.body.classList.contains('mac') ? 'mac' : 'win'];
