@@ -42,6 +42,12 @@ def node_row(node, this_year):
     return row
 
 
+def first_in_state(modules, state):
+    """图序第一个处在这个状态的节点，连它所在的模块一起给出来。"""
+    return next(((module, node) for module in modules for node in module["节点"]
+                 if node["状态"] == state), (None, None))
+
+
 def progress_of(nodes):
     progress = {state: sum(node["状态"] == state for node in nodes) for state in STATES}
     progress["总数"] = len(nodes)
@@ -66,13 +72,17 @@ def aggregate(path, view, this_year):
     # 引擎的前方装的正是还没生成的那些节点，按图序。下一个与当前节点的后备都指它的第一个，
     # 所以两个都在图序里取第一个未生成的节点：同一个来源，不会各说各话；
     # 从模块里取还多带状态与高亮两列，圆圈照它画。
-    ahead = next((node for node in nodes if node["状态"] == "未生成"), None)
-    current = next((node for node in nodes if node["状态"] == "已生成"), None) or ahead
+    next_module, next_node = first_in_state(modules, "未生成")
+    # 当前模块是当前节点所在的那个模块，不是图序第一个进行中的模块：后者可能是靠前的一个
+    # 空模块或律师跳过去的一块，第三层「当前模块 › 当前节点」就会印出名不副实的一行（#21）。
+    current_module, current = first_in_state(modules, "已生成")
+    if current is None:
+        current_module, current = next_module, next_node
     return {
         "目录名": path.name, "路径": str(path), "生成时间": display_text(view["生成时间"]),
-        "当前模块": next((module["标题"] for module in modules if module["状态"] == "进行中"), None),
+        "当前模块": current_module["标题"] if current_module else None,
         "当前节点": {key: current[key] for key in ("标题", "状态", "高亮")} if current else None,
-        "下一个": ahead["标题"] if ahead else None,
+        "下一个": next_node["标题"] if next_node else None,
         "待看数": sum(node["高亮"] == "未清" for node in nodes),
         "进度": progress_of(nodes), "模块": modules,
     }

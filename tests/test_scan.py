@@ -136,6 +136,45 @@ class ScanTests(unittest.TestCase):
         node = self.scan("--根", self.root)["行"][0]["模块"][0]["节点"][0]
         self.assertEqual((node["时间"], node["时间显示"]), (ANOTHER_YEAR, "2019年1月5日"))
 
+    def test_current_module_is_the_module_the_current_node_lives_in(self):
+        """第三层印的是「当前模块 › 当前节点」，模块必须是那个节点自己的。"""
+        self.case("甲", {**EMPTY, "模块": [
+            {"标题": "甲模块", "状态": "进行中", "节点": [
+                {"标题": "甲", "状态": "未生成", "高亮": "无文书"}]},
+            {"标题": "乙模块", "状态": "进行中", "节点": [made("乙")]}],
+            "前方": [{"标题": "甲模块", "节点": [{"标题": "甲"}]}]})
+        self.case("乙", {**EMPTY, "模块": [
+            {"标题": "空模块", "状态": "进行中", "节点": []},
+            {"标题": "甲模块", "状态": "进行中", "节点": [made("甲")]}]})
+        rows = {row["目录名"]: row for row in self.scan("--根", self.root)["行"]}
+        self.assertEqual(rows["甲"]["当前模块"], "乙模块")
+        self.assertEqual(rows["甲"]["当前节点"]["标题"], "乙")
+        self.assertEqual(rows["甲"]["下一个"], "甲")
+        self.assertEqual(rows["乙"]["当前模块"], "甲模块")
+        self.assertEqual(rows["乙"]["当前节点"]["标题"], "甲")
+
+    def test_current_module_follows_the_next_node_when_nothing_is_generated(self):
+        self.case("甲", {**EMPTY, "模块": [
+            {"标题": "空模块", "状态": "进行中", "节点": []},
+            {"标题": "已完模块", "状态": "已完成", "节点": [confirmed("甲")]},
+            {"标题": "乙模块", "状态": "进行中", "节点": [
+                {"标题": "乙", "状态": "未生成", "高亮": "无文书"}]}],
+            "前方": [{"标题": "乙模块", "节点": [{"标题": "乙"}]}]})
+        row = self.scan("--根", self.root)["行"][0]
+        self.assertEqual(row["当前模块"], "乙模块")
+        self.assertEqual(row["当前节点"], {"标题": "乙", "状态": "未生成", "高亮": "无文书"})
+        self.assertEqual(row["下一个"], "乙")
+
+    def test_a_leftover_empty_module_is_not_a_current_module(self):
+        """整案办完、图里只剩一个空模块时，第三层没有东西可印，两个字段一起为空。"""
+        self.case("甲", {**EMPTY, "模块": [
+            {"标题": "已完模块", "状态": "已完成", "节点": [confirmed("甲")]},
+            {"标题": "空模块", "状态": "进行中", "节点": []}]})
+        row = self.scan("--根", self.root)["行"][0]
+        self.assertIsNone(row["当前节点"])
+        self.assertIsNone(row["当前模块"])
+        self.assertIsNone(row["下一个"])
+
     def test_deadline_rides_along_only_when_the_engine_wrote_one(self):
         self.case("甲", {**EMPTY, "模块": [{"标题": "甲模块", "状态": "进行中", "节点": [
             {"标题": "甲", "状态": "未生成", "高亮": "无文书", "时限": "雨季之前（合成示例）"},
