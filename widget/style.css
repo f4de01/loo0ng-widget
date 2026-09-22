@@ -24,10 +24,17 @@ html[data-blur="1"], html[data-blur="preview"] { --card-alpha: .6; }
 
 * { box-sizing: border-box; }
 html, body { margin: 0; height: 100%; background: transparent; }
+/* 全卡可拖（#17）：整张卡片减去交互区都是把手，所以全局禁选文本、全局把指针交给自己处理。
+   `touch-action: none` 一给就是整棵树——effective touch-action 要跟祖先求交，后代再写 pan-y 也压不回来，
+   所以触屏上页内滚动一并关掉了（默认尺寸下三案不溢出，本来也滚不着）。换来的是触屏上一划是拖卡片，
+   不会被当成滚动手势把拖动 cancel 掉。哪天页内真要触屏滚动，得换成给把手单独铺一层，不是在 .page 上加一行。 */
 body {
   font: var(--fs-body)/1.45 var(--font); color: var(--ink);
   user-select: none; -webkit-user-select: none; overflow: hidden;
+  touch-action: none;
 }
+/* 输入类元素不受全局禁选影响：里面的字仍然选得中、改得动。 */
+input { user-select: text; -webkit-user-select: text; }
 
 /* 卡片：内边距里的内容自己滚，窗不长高；投影落在 --margin 那圈透明边距上。
    那圈边距仍是页面的一部分，点得到、拖得动，不会穿透到桌面。 */
@@ -62,14 +69,11 @@ body.mac #minimize { background: #febc2e; }
 body.mac .win-controls span { visibility: hidden; }
 body.mac .win-controls:hover span, body.mac .win-controls button:focus-visible span { visibility: visible; }
 
-/* 顶行也是拖动把手（整卡可拖是 #17）；给窗口按钮让出它那一角。 */
+/* 顶行：给窗口按钮让出它那一角。它和卡片别处一样能拖，不再是唯一的把手（#17）。 */
 .top {
   flex: none; display: flex; align-items: center; height: 26px;
   padding: 4px var(--pad) 0; font-size: var(--fs-min); letter-spacing: .12em; color: var(--ink-3);
-  touch-action: none;
 }
-.top.draggable { cursor: grab; }
-.top.dragging { cursor: grabbing; }
 body.win .top { padding-right: 62px; }
 body.mac .top { padding-left: 56px; }
 
@@ -81,7 +85,7 @@ body.mac .top { padding-left: 56px; }
 }
 .page:hover { scrollbar-color: var(--scroll-thumb) transparent; }
 
-/* 清单页：一案三层。 */
+/* 清单页：一案三层。整行是交互区（.interactive）：按住它不拖窗，点它进案件页（#18）。 */
 .case-row {
   margin: 0 calc(var(--pad) * -1); padding: 10px var(--pad) 11px;
   border-bottom: 1px solid var(--line-soft);
@@ -137,5 +141,8 @@ body.mac .top { padding-left: 56px; }
   font-size: var(--fs-min); color: var(--ink-2);
   background: rgba(var(--card-rgb), .9); padding: 4px 8px; border-radius: 8px;
 }
+/* 平时不给 grab 光标：能拖的是整张卡，一进窗就换手形反而吵；真拖起来才换成 grabbing。
+   放在最后：它和 .win-controls button 的 cursor 特异度相同，写在前面会被那条盖掉。 */
+html.dragging, html.dragging * { cursor: grabbing; }
 button:focus-visible, input:focus-visible { outline: 2px solid var(--confirmed); outline-offset: 2px; }
 [hidden] { display: none !important; }

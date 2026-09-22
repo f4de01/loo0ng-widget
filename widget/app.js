@@ -50,7 +50,8 @@ function render(data) {
   rows.replaceChildren();
   for (const row of data.行) {
     const article = document.createElement('article');
-    article.className = 'case-row';
+    // .interactive 是交互区的记号：按住它不拖窗（#17），点它进案件页（#18）。
+    article.className = 'case-row interactive';
     const name = document.createElement('div');
     name.className = 'name';
     name.append(textElement('h2', row.目录名),

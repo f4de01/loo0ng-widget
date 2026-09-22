@@ -9,6 +9,14 @@
 // 由 mac 交付票删掉这一行（删掉即回到自绘那层，别处不用动）。
 const MATERIAL = { mac: { effects: ['underWindowBackground'], state: 'active' } };
 
+// 整卡可拖（#17）：除交互区外，按住卡片哪里都能拖——透明外边距、顶行、空白、进度条、文字都算。
+// 交互区是卡片上今天真有的可点元素——窗口按钮连同它那一角（按钮之间那 2px 的缝也不该拖窗）、
+// 开发预览的文件选择器——加上页面自己画的行与格：它们没有原生语义，靠 .interactive 这个记号进来
+// （清单页的案件行，日后的模块行、节点行、矩阵格）。行若做成原生 button 就不必再标。
+const INTERACTIVE = 'button, input, label, .win-controls, .interactive';
+// 按下后位移不到这么多 CSS 像素就当点击：窗一格都不动，click 照常落到按下的那个元素上。
+const THRESHOLD = 4;
+
 async function applyMaterial(win) {
   const wanted = MATERIAL[document.body.classList.contains('mac') ? 'mac' : 'win'];
   if (!wanted) return;
@@ -28,12 +36,15 @@ export async function setupWindow(zebar, reportError) {
   const widget = zebar.currentWidget();
   const win = widget.tauriWindow;
   applyMaterial(win);
-  // 顶行是这一版的拖动把手；整卡可拖归 #17。
-  const handle = document.querySelector('#top');
+  // 把手不再是某一个元素，而是整张卡片减去交互区：指针事件听在 window 上（透明外边距也在里面），
+  // 指针捕获落在 <html> 上——它不像案件行那样每五秒被重绘换掉。
+  const root = document.documentElement;
   const minimize = document.querySelector('#minimize');
   const close = document.querySelector('#close');
   const key = 'loo0ng.window-position';
   let position = await win.outerPosition();
+  // 按下了、还没过阈值是 press，窗不动；过了阈值才转成 drag。
+  let press = null;
   let drag = null;
   let target = null;
   let frame = 0;
@@ -87,30 +98,53 @@ export async function setupWindow(zebar, reportError) {
     schedule();
   }
 
+  function owns(event) {
+    const active = drag ?? press;
+    return Boolean(active) && event.pointerId === active.pointerId;
+  }
+
+  // 过阈值才真开始拖：捕获指针（拖快了甩出窗外也不丢事件），窗口原点取此刻的位置，
+  // 位移仍从按下那一点算起——阈值那几像素不丢，拖起来还是 1:1 跟手。
+  function begin() {
+    drag = { pointerId: press.pointerId, screenX: press.screenX, screenY: press.screenY,
+      x: position.x, y: position.y, scale: window.devicePixelRatio || 1 };
+    press = null;
+    // 捕获要不到就算了：窗跟着指针 1:1 走，指针本来也甩不出这扇窗。
+    try { root.setPointerCapture(drag.pointerId); } catch { /* 停在没有捕获的那一档。 */ }
+    root.classList.add('dragging');
+  }
+
+  // 一个收尾管两件事：没过阈值的那一按就此作废，真拖着的就此结束。失焦、指针取消都走这里。
   function finish() {
+    press = null;
     if (!drag) return;
     const pointerId = drag.pointerId;
     drag = null;
-    handle.classList.remove('dragging');
-    if (handle.hasPointerCapture(pointerId)) handle.releasePointerCapture(pointerId);
+    root.classList.remove('dragging');
+    if (root.hasPointerCapture(pointerId)) root.releasePointerCapture(pointerId);
   }
 
   // pointerdown is the captured counterpart of mousedown: no import or await here.
-  handle.addEventListener('pointerdown', event => {
-    if (event.button !== 0 || event.target.closest('.win-controls') || moving || target) return;
-    event.preventDefault();
-    handle.setPointerCapture(event.pointerId);
-    drag = { pointerId: event.pointerId, screenX: event.screenX, screenY: event.screenY,
-      x: position.x, y: position.y, scale: window.devicePixelRatio || 1 };
-    handle.classList.add('dragging');
+  // 按下只记一笔，窗不动；也不调 preventDefault——它会连带吃掉后面的 click，而按下的地方本来就该点得着。
+  window.addEventListener('pointerdown', event => {
+    if (event.button !== 0 || event.target.closest(INTERACTIVE) || moving || target) return;
+    press = { pointerId: event.pointerId, screenX: event.screenX, screenY: event.screenY };
   });
-  handle.addEventListener('pointermove', event => {
+  window.addEventListener('pointermove', event => {
+    if (!owns(event)) return;
+    // 按键在窗外松开：pointerup 不回来，下一次移动就地结束这一按。
     if (!(event.buttons & 1)) { finish(); return; }
+    if (press && (Math.abs(event.screenX - press.screenX) >= THRESHOLD
+      || Math.abs(event.screenY - press.screenY) >= THRESHOLD)) begin();
     update(event);
   });
-  handle.addEventListener('pointerup', event => { update(event); finish(); });
-  handle.addEventListener('pointercancel', finish);
-  handle.addEventListener('lostpointercapture', finish);
+  window.addEventListener('pointerup', event => {
+    if (!owns(event)) return;
+    update(event);
+    finish();
+  });
+  window.addEventListener('pointercancel', event => { if (owns(event)) finish(); });
+  window.addEventListener('lostpointercapture', event => { if (owns(event)) finish(); });
   window.addEventListener('blur', finish);
 
   async function settle() {
@@ -130,5 +164,4 @@ export async function setupWindow(zebar, reportError) {
   });
   minimize.disabled = false;
   close.disabled = false;
-  handle.classList.add('draggable');
 }
