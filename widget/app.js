@@ -23,7 +23,7 @@ if (hostClient) hostClient.catch(showError);
 // 启动时记住的总是赢；缺失、无效、不可读就回到清单页、回到模块视。
 const PLACE = 'loo0ng.place';
 const FORM = 'loo0ng.form';
-// 案件页的形式；矩阵视（#19）来了再加一个，写这一项也等那时有了按钮才发生。
+// 案件页的形式；矩阵视（#19）来了再加一个，那时按钮切换也写这一项。
 const VIEWS = {module: moduleView};
 
 function recall(key, valid) {
@@ -131,7 +131,8 @@ function render(data) {
 }
 
 // 案件页：表头是返回、分段进度条与计数，正文是选中的形式。那案不在这一轮输出里
-// （读不出、被挪走、还没扫过）就清空，表头只剩返回——不提示、不自动回清单页。
+// （读不出、被挪走）就清空正文，表头保留上一次画的进度条与计数——不提示、不自动回清单页；
+// 启动时还没扫过第一轮，表头也还没有可画的。
 // 设置没填好时一案都没有，正文印那段可照做的指引：整张卡片都只该有它，不能藏在清单页里。
 function renderCase() {
   // 按工作区路径认出那一案：是查找，不是挑选。一轮输出里路径不重由扫描脚本保证，页面不去保证。
@@ -143,7 +144,6 @@ function renderCase() {
   shownSnapshot = snapshot;
   hidePop();
   if (!row) {
-    caseBar.replaceChildren();
     casePage.replaceChildren();
     if (guidance) casePage.append(textElement('p', guidance, 'guide'));
     return;
@@ -239,6 +239,7 @@ function showPage(onCase) {
 function enterCase(path) {
   place = {page: 'case', path};
   keep(PLACE, place);
+  keep(FORM, form);
   casePage.scrollTop = 0;
   renderCase();
   showPage(true);
