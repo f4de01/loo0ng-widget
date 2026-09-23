@@ -19,6 +19,11 @@
       <div class="top case-head" id="case-top">
         <button id="back" type="button" aria-label="返回清单页" title="返回"><span aria-hidden="true">‹</span></button>
         <div class="barline" id="case-bar"></div>
+        <!-- 两种形式（#19）：当前那个填色，选择记进呈现偏好。 -->
+        <div class="forms" role="group" aria-label="形式">
+          <button type="button" data-form="module">模块</button>
+          <button type="button" data-form="matrix">矩阵</button>
+        </div>
       </div>
     </div>
     <p class="banner" id="window-error" role="alert" hidden></p>
@@ -31,7 +36,7 @@
       </section>
       <section class="page" id="case-page" aria-label="案件页"></section>
     </div>
-    <!-- 悬浮概览：自绘，不用原生 title；模块视里只补时限全文。 -->
+    <!-- 悬浮概览：自绘，不用原生 title。矩阵格上四行，列名上是全名；模块视里只补时限全文。 -->
     <div class="pop" id="pop" role="tooltip" hidden></div>
   </div>
   <label id="development" hidden>开发预览：载入扫描结果 <input id="preview" type="file" accept="application/json,.json"></label>

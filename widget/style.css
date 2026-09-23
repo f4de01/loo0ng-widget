@@ -7,6 +7,7 @@
   --shadow: 0 8px 24px rgba(0, 0, 0, .12);
   --card-alpha: .9;
   --dot: 12px;
+  --cell-min: 10px; --cell-max: 26px;
   --ease: 180ms ease-out;
   --card-rgb: 243, 242, 236;
   --ink: #283c36; --ink-2: #5f6f66; --ink-3: #717f76;
@@ -14,7 +15,7 @@
   --confirmed: #3d6a54; --generated: #8fb2a0; --unstarted: #a6b0a9; --unstarted-bg: #e2e5df;
   --na: #d7d9d2; --na-slash: #a2a79f;
   --amber: #b5761f;
-  --hover: rgba(40, 60, 54, .06); --scroll-thumb: rgba(40, 60, 54, .22); --pop-rgb: 255, 254, 250;
+  --hover: rgba(40, 60, 54, .06); --flash: rgba(61, 106, 84, .2); --scroll-thumb: rgba(40, 60, 54, .22); --pop-rgb: 255, 254, 250;
   --error-ink: #974c35; --error-bg: #f1e6dc;
   color-scheme: light;
 }
@@ -121,15 +122,14 @@ body.mac .top { padding-left: 56px; }
 .bar .s-unstarted { background: var(--unstarted-bg); }
 .bar .s-na { background: repeating-linear-gradient(135deg, var(--na) 0 2px, var(--na-slash) 2px 3px); }
 
-/* 五态编码：未生成空心、已生成半实、已确认实心、不适用淡灰带斜线、高亮未清再加一圈琥珀。 */
-.dot {
-  flex: none; width: var(--dot); height: var(--dot);
-  border: 1.5px solid var(--unstarted); border-radius: 50%; background: transparent;
-}
-.dot.s-generated { border-color: var(--confirmed); background: linear-gradient(90deg, var(--confirmed) 50%, transparent 50%); }
-.dot.s-confirmed { border-color: var(--confirmed); background: var(--confirmed); }
-.dot.s-na { border-color: var(--na); background: linear-gradient(135deg, var(--na) 42%, var(--na-slash) 42% 58%, var(--na) 58%); }
-.dot.attention { box-shadow: 0 0 0 1.5px rgba(var(--card-rgb), 1), 0 0 0 3px var(--amber); }
+/* 五态编码：未生成空心、已生成半实、已确认实心、不适用淡灰带斜线、高亮未清再加一圈琥珀。
+   圆圈与矩阵格共用这一套，只是形状不同。 */
+.dot, .cell { border: 1.5px solid var(--unstarted); background: transparent; }
+.dot { flex: none; width: var(--dot); height: var(--dot); border-radius: 50%; }
+:is(.dot, .cell).s-generated { border-color: var(--confirmed); background: linear-gradient(90deg, var(--confirmed) 50%, transparent 50%); }
+:is(.dot, .cell).s-confirmed { border-color: var(--confirmed); background: var(--confirmed); }
+:is(.dot, .cell).s-na { border-color: var(--na); background: linear-gradient(135deg, var(--na) 42%, var(--na-slash) 42% 58%, var(--na) 58%); }
+:is(.dot, .cell).attention { box-shadow: 0 0 0 1.5px rgba(var(--card-rgb), 1), 0 0 0 3px var(--amber); }
 
 /* 案件页表头：返回、与清单页同款的分段进度条 + 计数。不放目录名，不放当前模块行。 */
 /* 返回键自带留白，Windows 上左边距收窄让它贴近卡片边；mac 左上是红绿灯，照顶行让位。 */
@@ -142,6 +142,14 @@ body.win .case-head { padding-left: 8px; }
 #back:hover { background: var(--hover); color: var(--ink); }
 .barline { flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; }
 .barline .bar { flex: 1; margin: 0; }
+/* 两种形式并排，当前那个填色；不放图标。 */
+.forms { flex: none; display: flex; padding: 2px; gap: 2px; border-radius: 7px; background: var(--hover); }
+.forms button {
+  height: 18px; padding: 0 8px; border: 0; border-radius: 5px; background: transparent;
+  color: var(--ink-2); font: var(--fs-min)/1 var(--font); cursor: default;
+}
+.forms button:hover { color: var(--ink); }
+.forms button[aria-pressed="true"] { background: var(--confirmed); color: rgb(var(--card-rgb)); }
 
 /* 模块视：模块行是原生 button，整行可点、可折叠，允许多开。 */
 .module { border-bottom: 1px solid var(--line-soft); }
@@ -176,6 +184,36 @@ body.win .case-head { padding-left: 8px; }
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .node time { flex: none; font-size: var(--fs-secondary); color: var(--ink-3); font-variant-numeric: tabular-nums; white-space: nowrap; }
+/* 从矩阵格点过来的那一行底色闪一次；系统减少动态时不闪，只定位。 */
+.node.flash { animation: flash 600ms ease-out; }
+@keyframes flash { from { background: var(--flash); } to { background: transparent; } }
+@media (prefers-reduced-motion: reduce) { .node.flash { animation: none; } }
+
+/* 矩阵视（#19）：一列一模块，列与格都照输出的次序摆。每列均分卡片内宽，一份就是「内宽 ÷ 模块数」，
+   夹在 [--cell-min, --cell-max] 的 1.2 倍之间；格占一份的 5/6、间距占 1/6，即间距是边长的 1/5。
+   列是容器（container-type），格边长 --side 用 100cqw 取这一份的宽（用物理的 cqw：竖排的列名里 cqi 会落到另一根轴上），所以页面不数模块、不算尺寸。
+   模块多到一份不足下限时，格停在下限，案件页横向滚动。 */
+.matrix { display: flex; padding-top: 10px; }
+.column {
+  flex: 1 1 0; min-width: calc(var(--cell-min) * 1.2); max-width: calc(var(--cell-max) * 1.2);
+  display: flex; flex-direction: column; container-type: inline-size;
+  --side: calc(100cqw / 1.2);
+}
+.cells { display: flex; flex-direction: column; gap: calc(var(--side) / 5); }
+.cell, .cells:empty::before { width: var(--side); aspect-ratio: 1; border-radius: 22%; }
+.cell:hover { filter: brightness(.9); }
+/* 琥珀圈随边长缩放：圆圈那一档 3px 比最小间距（约 2px）还宽，会压到邻格上。这里最宽约 2.6px，最窄约 1px，
+   两枚相邻的琥珀格刚好碰上而不叠。 */
+.cell.attention { box-shadow: 0 0 0 calc(var(--side) / 20) rgba(var(--card-rgb), 1), 0 0 0 calc(var(--side) / 10) var(--amber); }
+/* 空模块：一枚虚线格占位。 */
+.cells:empty::before { content: ""; display: block; border: 1px dashed var(--unstarted); }
+/* 列名竖排放列底，最多 6 字、超出省略，悬浮见全名。列一样高（flex 拉齐），列名框一样长，所以各列列名顶端对齐。 */
+.column-name {
+  margin-top: auto; padding-top: 8px; box-sizing: content-box;
+  writing-mode: vertical-rl; height: 6em; width: var(--side);
+  font-size: min(var(--fs-min), var(--side)); line-height: var(--side); color: var(--ink-3);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
 
 /* 悬浮概览：自绘浮层，指针穿过它，不挡下面的行。 */
 .pop {

@@ -9,6 +9,7 @@ const casePage = document.querySelector('#case-page');
 const casePanes = [document.querySelector('#case-top'), casePage];
 const caseBar = document.querySelector('#case-bar');
 const pop = document.querySelector('#pop');
+const formButtons = document.querySelectorAll('.forms button');
 // 圆圈与分段进度条共用一套编码，这里只把扫描脚本给的状态换成类名，不判定、不计数。
 const SHAPE = {'未生成': 's-unstarted', '已生成': 's-generated', '已确认': 's-confirmed', '不适用': 's-na'};
 const SEGMENTS = ['已确认', '已生成', '未生成', '不适用'];
@@ -23,8 +24,8 @@ if (hostClient) hostClient.catch(showError);
 // 启动时记住的总是赢；缺失、无效、不可读就回到清单页、回到模块视。
 const PLACE = 'loo0ng.place';
 const FORM = 'loo0ng.form';
-// 案件页的形式；矩阵视（#19）来了再加一个，那时按钮切换也写这一项。
-const VIEWS = {module: moduleView};
+// 案件页的两种形式；表头两枚按钮切换，切换时写下 FORM。
+const VIEWS = {module: moduleView, matrix: matrixView};
 
 function recall(key, valid) {
   try {
@@ -44,7 +45,7 @@ function keep(key, value) {
 let place = recall(PLACE, value => value?.page === 'list'
   || (value?.page === 'case' && typeof value.path === 'string' && value.path !== ''))
   ?? {page: 'list'};
-const form = recall(FORM, value => Object.prototype.hasOwnProperty.call(VIEWS, value)) ?? 'module';
+let form = recall(FORM, value => Object.prototype.hasOwnProperty.call(VIEWS, value)) ?? 'module';
 // 用户动过的模块行：键是「工作区路径 + 模块标题」，值是展开与否。没动过的按模块状态默认。
 // 只活在这一次里，不进本地存储——呈现偏好只有那三样。
 const toggled = new Map();
@@ -78,10 +79,15 @@ function countText(progress) {
   return textElement('span', `${progress.已确认} / ${progress.总数}`, 'count');
 }
 
+// 圆圈与矩阵格共用的五态编码：状态换类名，高亮未清再加一个琥珀圈的类。
+function encode(element, node) {
+  if (SHAPE[node.状态]) element.classList.add(SHAPE[node.状态]);
+  if (node.高亮 === '未清') element.classList.add('attention');
+  return element;
+}
+
 function circle(node) {
-  const dot = textElement('i', '', 'dot');
-  if (SHAPE[node.状态]) dot.classList.add(SHAPE[node.状态]);
-  if (node.高亮 === '未清') dot.classList.add('attention');
+  const dot = encode(textElement('i', '', 'dot'), node);
   dot.setAttribute('aria-hidden', 'true');
   return dot;
 }
@@ -152,13 +158,17 @@ function renderCase() {
   casePage.replaceChildren(VIEWS[form](row));
 }
 
+function moduleKey(row, module) {
+  return `${row.路径}
+${module.标题}`;
+}
+
 // 模块视：进行中的默认展开，已完成与不适用折叠，允许多开；节点行四段，点了无事。
 function moduleView(row) {
   const view = document.createElement('div');
   view.className = 'modules';
   for (const module of row.模块) {
-    const key = `${row.路径}
-${module.标题}`;
+    const key = moduleKey(row, module);
     const section = document.createElement('section');
     section.className = 'module';
     // 模块行做成原生 button：它自己就在交互区里（#17），键盘也按得动。
@@ -195,19 +205,81 @@ function nodeLine(node) {
   line.className = 'node interactive';
   line.append(circle(node), textElement('span', node.标题, 'title'));
   const deadline = textElement('span', node.时限 ?? '', 'deadline');
-  if (node.时限) {
-    deadline.addEventListener('mouseenter', event => showPop(node.时限, event));
-    deadline.addEventListener('mousemove', placePop);
-    deadline.addEventListener('mouseleave', hidePop);
-  }
+  if (node.时限) hoverPop(deadline, [node.时限]);
   const moment = textElement('time', node.时间显示 ?? '');
   if (node.时间) moment.dateTime = node.时间;
   line.append(deadline, moment);
   return line;
 }
 
-function showPop(text, event) {
-  pop.textContent = text;
+// 矩阵视：一列一模块、列内一格一节点，都照扫描输出的图序摆，页面不排；格的颜色是圆圈那一套类。
+// 格边长、间距与列名的竖排全在样式表里由布局得出（每列分得卡片内宽的一份，格占其中 5/6），
+// 页面不数模块、不算尺寸。空模块的那枚虚线格也是样式表按「列里没有格」画的，页面不判空。
+function matrixView(row) {
+  const view = document.createElement('div');
+  view.className = 'matrix';
+  row.模块.forEach((module, moduleIndex) => {
+    const column = document.createElement('div');
+    column.className = 'column';
+    const cells = document.createElement('div');
+    cells.className = 'cells';
+    module.节点.forEach((node, nodeIndex) => {
+      const cell = encode(textElement('div', '', 'cell interactive'), node);
+      const lines = [`${module.标题} › ${node.标题}`,
+        node.时间显示 ? `${node.状态} · ${node.时间显示}` : node.状态];
+      if (node.时限) lines.push(node.时限);
+      if (cell.classList.contains('attention')) lines.push('等你看');
+      cell.setAttribute('aria-label', lines.join('，'));
+      hoverPop(cell, lines);
+      cell.addEventListener('click', () => locate(row, moduleIndex, nodeIndex));
+      cells.append(cell);
+    });
+    const name = textElement('span', module.标题, 'column-name');
+    hoverPop(name, [module.标题]);
+    column.append(cells, name);
+    view.append(column);
+  });
+  return view;
+}
+
+// 点一个格：切到模块视，展开那个模块，把那个节点行摆到案件页中间，底色闪一次。
+// 第几个模块、第几个节点是这一格在输出里的位置，模块视照同一份输出同一个次序画，按位置就找得到。
+function locate(row, moduleIndex, nodeIndex) {
+  toggled.set(moduleKey(row, row.模块[moduleIndex]), true);
+  switchForm('module');
+  const line = casePage.querySelectorAll('.module')[moduleIndex]?.querySelectorAll('.node')[nodeIndex];
+  if (!line) return;
+  const page = casePage.getBoundingClientRect();
+  const box = line.getBoundingClientRect();
+  casePage.scrollTop += box.top - page.top - (page.height - box.height) / 2;
+  // 系统减少动态时样式表不放这段动画，只定位不闪。
+  line.classList.add('flash');
+  line.addEventListener('animationend', () => line.classList.remove('flash'), {once: true});
+}
+
+function switchForm(next) {
+  form = next;
+  keep(FORM, form);
+  markForm();
+  // 形式变了，同一案也要照新形式重画一遍。
+  shownSnapshot = null;
+  casePage.scrollTop = 0;
+  renderCase();
+}
+
+function markForm() {
+  for (const button of formButtons) button.setAttribute('aria-pressed', String(button.dataset.form === form));
+}
+
+// 自绘浮层：停上去出现、跟着指针、移开消失；一行一段。
+function hoverPop(element, lines) {
+  element.addEventListener('mouseenter', event => showPop(lines, event));
+  element.addEventListener('mousemove', placePop);
+  element.addEventListener('mouseleave', hidePop);
+}
+
+function showPop(lines, event) {
+  pop.replaceChildren(...lines.map(line => textElement('div', line)));
   pop.hidden = false;
   placePop(event);
 }
@@ -245,6 +317,8 @@ function enterCase(path) {
   showPage(true);
 }
 
+for (const button of formButtons) button.addEventListener('click', () => switchForm(button.dataset.form));
+
 document.querySelector('#back').addEventListener('click', () => {
   place = {page: 'list'};
   keep(PLACE, place);
@@ -254,6 +328,7 @@ document.querySelector('#back').addEventListener('click', () => {
 
 // 启动时回到记住的那一页，不滑：打开卡片就该停在那里，而不是看它从清单页滑过去。
 card.classList.add('still');
+markForm();
 showPage(place.page === 'case');
 renderCase();
 requestAnimationFrame(() => requestAnimationFrame(() => card.classList.remove('still')));
