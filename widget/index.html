@@ -13,14 +13,26 @@
       <button id="minimize" type="button" aria-label="最小化" title="最小化" disabled><span aria-hidden="true">−</span></button>
       <button id="close" type="button" aria-label="关闭" title="关闭" disabled><span aria-hidden="true">×</span></button>
     </div>
-    <div class="top"><span id="heading">在办案件 <span id="count">—</span></span></div>
+    <!-- 两页一窗（#18）：顶行与正文各一条横滑轨道，同一个类一起推；横幅夹在两条轨道之间，两页共用。 -->
+    <div class="track" id="tops">
+      <div class="top" id="list-top"><span id="heading">在办案件 <span id="count">—</span></span></div>
+      <div class="top case-head" id="case-top">
+        <button id="back" type="button" aria-label="返回清单页" title="返回"><span aria-hidden="true">‹</span></button>
+        <div class="barline" id="case-bar"></div>
+      </div>
+    </div>
     <p class="banner" id="window-error" role="alert" hidden></p>
     <p class="banner" id="scan-error" role="alert" hidden></p>
-    <section class="page" aria-label="清单页">
-      <div id="rows"></div>
-      <div id="unreadable"></div>
-      <p class="guide" id="settings-error" role="alert" hidden></p>
-    </section>
+    <div class="track bodies" id="bodies">
+      <section class="page" id="list-page" aria-label="清单页">
+        <div id="rows"></div>
+        <div id="unreadable"></div>
+        <p class="guide" id="settings-error" role="alert" hidden></p>
+      </section>
+      <section class="page" id="case-page" aria-label="案件页"></section>
+    </div>
+    <!-- 悬浮概览：自绘，不用原生 title；模块视里只补时限全文。 -->
+    <div class="pop" id="pop" role="tooltip" hidden></div>
   </div>
   <label id="development" hidden>开发预览：载入扫描结果 <input id="preview" type="file" accept="application/json,.json"></label>
   <script type="module" src="./app.js"></script>

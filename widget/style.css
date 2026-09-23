@@ -14,7 +14,7 @@
   --confirmed: #3d6a54; --generated: #8fb2a0; --unstarted: #a6b0a9; --unstarted-bg: #e2e5df;
   --na: #d7d9d2; --na-slash: #a2a79f;
   --amber: #b5761f;
-  --hover: rgba(40, 60, 54, .06); --scroll-thumb: rgba(40, 60, 54, .22);
+  --hover: rgba(40, 60, 54, .06); --scroll-thumb: rgba(40, 60, 54, .22); --pop-rgb: 255, 254, 250;
   --error-ink: #974c35; --error-bg: #f1e6dc;
   color-scheme: light;
 }
@@ -77,9 +77,18 @@ body.mac .win-controls:hover span, body.mac .win-controls button:focus-visible s
 body.win .top { padding-right: 62px; }
 body.mac .top { padding-left: 56px; }
 
+/* 两页一窗（#18）：顶行与正文各一条两屏宽的轨道，.on-case 把两条一起推过去半条。
+   启动回到记住的那一页时带 .still，不滑；系统减少动态时也不滑。 */
+.track { flex: none; display: flex; width: 200%; transition: transform var(--ease); }
+.track > * { width: 50%; }
+.card.on-case .track { transform: translateX(-50%); }
+.card.still .track { transition: none; }
+@media (prefers-reduced-motion: reduce) { .track { transition: none; } }
+.bodies { flex: 1; min-height: 0; }
+
 /* 页内滚动，滚动条悬浮才现：平时轨道与滑块都是透明的，不占一条常驻的灰边。 */
 .page {
-  flex: 1; min-height: 0; overflow-y: auto;
+  height: 100%; overflow-y: auto;
   padding: 4px var(--pad) var(--pad);
   scrollbar-width: thin; scrollbar-color: transparent transparent;
 }
@@ -90,6 +99,9 @@ body.mac .top { padding-left: 56px; }
   margin: 0 calc(var(--pad) * -1); padding: 10px var(--pad) 11px;
   border-bottom: 1px solid var(--line-soft);
 }
+.case-row:hover { background: var(--hover); }
+/* 整行可点的两种行：键盘走到时焦点框画在行内，不被卡片的圆角裁掉。 */
+.case-row:focus-visible, .module-head:focus-visible { outline: 2px solid var(--confirmed); outline-offset: -2px; }
 .case-row .name { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
 .case-row h2 { margin: 0; font-size: var(--fs-title); font-weight: 600; overflow-wrap: anywhere; }
 .count { font-variant-numeric: tabular-nums; font-size: var(--fs-secondary); color: var(--ink-2); white-space: nowrap; }
@@ -118,6 +130,59 @@ body.mac .top { padding-left: 56px; }
 .dot.s-confirmed { border-color: var(--confirmed); background: var(--confirmed); }
 .dot.s-na { border-color: var(--na); background: linear-gradient(135deg, var(--na) 42%, var(--na-slash) 42% 58%, var(--na) 58%); }
 .dot.attention { box-shadow: 0 0 0 1.5px rgba(var(--card-rgb), 1), 0 0 0 3px var(--amber); }
+
+/* 案件页表头：返回、与清单页同款的分段进度条 + 计数。不放目录名，不放当前模块行。 */
+/* 返回键自带留白，Windows 上左边距收窄让它贴近卡片边；mac 左上是红绿灯，照顶行让位。 */
+.case-head { gap: 8px; letter-spacing: normal; }
+body.win .case-head { padding-left: 8px; }
+#back {
+  flex: none; width: 26px; height: 22px; padding: 0; border: 0; border-radius: 6px; background: transparent;
+  color: var(--ink-2); font: 20px/1 var(--font); cursor: default;
+}
+#back:hover { background: var(--hover); color: var(--ink); }
+.barline { flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; }
+.barline .bar { flex: 1; margin: 0; }
+
+/* 模块视：模块行是原生 button，整行可点、可折叠，允许多开。 */
+.module { border-bottom: 1px solid var(--line-soft); }
+.module-head {
+  display: flex; align-items: center; gap: 8px; width: calc(100% + var(--pad) * 2);
+  margin: 0 calc(var(--pad) * -1); padding: 8px var(--pad); border: 0; background: transparent;
+  color: inherit; font: inherit; text-align: left; cursor: default;
+}
+.module-head:hover { background: var(--hover); }
+.module-head .chevron {
+  flex: none; width: 0; height: 0; margin: 0 2px;
+  border: 4px solid transparent; border-left: 5px solid var(--ink-3); border-right-width: 0;
+  transition: transform var(--ease);
+}
+.module.open .chevron { transform: rotate(90deg); }
+.module-head .title { flex: 1; min-width: 0; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.module-head .state { flex: none; font-size: var(--fs-secondary); color: var(--ink-3); }
+.module-head .state.m-done { color: var(--confirmed); }
+.module-head .state.m-na { text-decoration: line-through; }
+.module .nodes { display: none; padding: 2px 0 8px; }
+.module.open .nodes { display: block; }
+@media (prefers-reduced-motion: reduce) { .module-head .chevron { transition: none; } }
+
+/* 节点行四段：圆圈 | 标题 | 时限（一行省略）| 时间靠右。标题占它要的宽，挤了才省略；时限吃剩下的。 */
+.node {
+  display: flex; align-items: center; gap: 8px; min-width: 0;
+  padding: 5px 0 5px 18px; border-radius: 6px;
+}
+.node .title { flex: 0 1 auto; min-width: 0; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.node .deadline {
+  flex: 1 1 0; min-width: 0; font-size: var(--fs-secondary); color: var(--ink-3);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.node time { flex: none; font-size: var(--fs-secondary); color: var(--ink-3); font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+/* 悬浮概览：自绘浮层，指针穿过它，不挡下面的行。 */
+.pop {
+  position: absolute; z-index: 9; max-width: 260px; padding: 7px 10px; border-radius: 8px; pointer-events: none;
+  background: rgba(var(--pop-rgb), .96); color: var(--ink); font-size: var(--fs-secondary); line-height: 1.5;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, .14), 0 0 0 1px rgba(0, 0, 0, .06); overflow-wrap: anywhere;
+}
 
 /* 错误只在发生时现身。读不出：排在案件之后的暗色行，只写目录名与原因。 */
 .unreadable {
