@@ -2,7 +2,7 @@
 
 实现规格是 [#2](https://github.com/f4de01/loo0ng-widget/issues/2)，母票是 [#1](https://github.com/f4de01/loo0ng-widget/issues/1)。原型分支只作资料，不合并。
 
-Windows 首版已通过 #8 最终验收，逐项证据、机器与版本、Python 3.9 跑法及现场恢复情况见 [Windows 验收记录](acceptance-windows.md)。下文保留各实现票当时的验证过程与后续补验。
+Windows 首版已通过 #8 最终验收，呈现定形已通过 #20 验收，两轮的逐项证据、机器与版本、Python 3.9 跑法及现场恢复情况见 [Windows 验收记录](acceptance-windows.md)。下文保留各实现票当时的验证过程与后续补验。
 
 ## 包与扫描
 
