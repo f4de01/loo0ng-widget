@@ -1,6 +1,7 @@
 /* 变量表：尺度、圆角、字号与原型同源；色值是 #22 换的冷色调一套（ADR-0004 附注），不再取原型的 A 纸。
-   不做深色模式，以后改的是这一组值——样式表别处不写色值，由一条测试守。颜色不是状态的唯一载体：形状先说话。
-   状态色同一蓝色系：已确认深蓝、已生成中蓝、未生成灰、不适用淡灰；琥珀只给高亮未清，是正常画面里唯一的暖色。
+   不做深色模式，以后改的是这一组值——样式表别处不写色值，由一条测试守。
+   状态只用深浅说话（#24，ADR-0004 附注二）：已确认深蓝、已生成浅蓝、未生成与不适用空白，都是实填；
+   琥珀只给高亮未清，是正常画面里唯一的暖色。
    报错的红棕不算在内：它只在出错时现身，律师看过后定的是保持红棕。 */
 :root {
   --radius: 18px; --pad: 16px; --margin: 12px;
@@ -12,16 +13,23 @@
   --edge: rgba(0, 0, 0, .06); --highlight: rgba(255, 255, 255, .55);
   --card-alpha: .9;
   --dot: 12px;
+  /* 矩阵格照律师给的样图（150% 缩放下截的，除以 1.5）：格 14px、格缝 3.5px、圆角 3px，定死，不随窗宽、节点数伸缩。
+     --cell-tile 是占位格的底图，一块「格 + 右下两道缝」的砖，只当遮罩用（只取不透明度，不带颜色）；
+     它的三个数得与上面三个量一致，SVG 里读不到变量，改一处要同改另一处。 */
+  --cell: 14px; --cell-gap: 3.5px; --cell-radius: 3px; --cell-pitch: calc(var(--cell) + var(--cell-gap));
+  --cell-tile: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='17.5' height='17.5'%3E%3Crect width='14' height='14' rx='3'/%3E%3C/svg%3E");
   --ease: 180ms ease-out;
   --card-rgb: 235, 240, 245;
   --ink: #1d2b3a; --ink-2: #4a5a6b; --ink-3: #5c6b7c;
-  --confirmed: #2b5a8a; --generated: #5f8fc0; --unstarted: #8e9aa7; --unstarted-bg: #d6dde5;
+  --confirmed: #2566d0; --generated: #86acea; --unstarted-bg: #d6dde5;
   --na: #d3d9e0; --na-slash: #9ba5b0;
   --amber: #b5761f;
   --capsule: rgba(255, 255, 255, .55); --capsule-hover: rgba(255, 255, 255, .85);
-  /* 遮罩只取不透明度：矩阵板右缘渐隐用它当「完全不透」那一端。 */
+  /* 矩阵底板不透明：卡片底是 90% 的，桌面一暗就把整张卡片染灰，空白格随之化进底色（#24 宿主里看到的）。 */
+  --plate: rgb(246, 248, 251);
+  /* 遮罩只取不透明度：矩阵右缘渐隐用它当「完全不透」那一端。 */
   --opaque: #000;
-  --hover: rgba(29, 43, 58, .06); --flash: rgba(43, 90, 138, .2); --scroll-thumb: rgba(29, 43, 58, .22); --pop-rgb: 252, 253, 255;
+  --hover: rgba(29, 43, 58, .06); --flash: rgba(37, 102, 208, .2); --scroll-thumb: rgba(29, 43, 58, .22); --pop-rgb: 252, 253, 255;
   --error-ink: #974c35; --error-bg: #f1e6dc;
   /* mac 红绿灯照系统的样子，不随卡片的色调走。 */
   --mac-close: #ff5f57; --mac-minimize: #febc2e; --mac-glyph: #492c22;
@@ -113,7 +121,6 @@ body.mac .top { padding-left: 56px; }
 .case-row:hover { background: var(--capsule-hover); }
 /* 整行可点的两种行：键盘走到时焦点框画在行内，不被卡片的圆角裁掉。 */
 .case-row:focus-visible, .module-head:focus-visible { outline: 2px solid var(--confirmed); outline-offset: -2px; }
-.case-row .name { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
 .case-row h2 { margin: 0; font-size: var(--fs-title); font-weight: 600; overflow-wrap: anywhere; }
 .count { font-variant-numeric: tabular-nums; font-size: var(--fs-secondary); color: var(--ink-2); white-space: nowrap; }
 .case-row .now {
@@ -122,24 +129,26 @@ body.mac .top { padding-left: 56px; }
 }
 .case-row .now span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-/* 分段进度条：四段的宽度比就是四个计数之比，由 flex-grow 画；计数为 0 的那段扫描脚本给 0，页面不画它。
-   空图（四个计数全是 0）没有任何一段，留一条空槽，免得那一行整条消失。 */
-.bar { display: flex; gap: 2px; height: 5px; margin-top: 8px; border-radius: 3px; overflow: hidden; }
+/* 分段进度条（#24）：一根两端圆头的胶囊，段间不留缝，从左到右读就是走了多少；长度是所在那一行的六成，计数紧跟在右边。
+   四段的宽度比就是四个计数之比，由 flex-grow 画；计数为 0 的那段扫描脚本给 0，页面不画它。
+   空图（四个计数全是 0）没有任何一段，留一根空槽，免得那一行整条消失。 */
+.barline { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.case-row .barline { margin-top: 8px; }
+.bar { flex: none; display: flex; width: 60%; height: 8px; border-radius: 4px; overflow: hidden; }
 .bar:empty { background: var(--unstarted-bg); }
-.bar i { display: block; flex-basis: 0; border-radius: 2px; }
+.bar i { display: block; flex-basis: 0; }
 .bar .s-confirmed { background: var(--confirmed); }
 .bar .s-generated { background: var(--generated); }
 .bar .s-unstarted { background: var(--unstarted-bg); }
 .bar .s-na { background: repeating-linear-gradient(135deg, var(--na) 0 2px, var(--na-slash) 2px 3px); }
 
-/* 五态编码：未生成空心、已生成半实、已确认实心、不适用淡灰带斜线、高亮未清再加一圈琥珀。
-   圆圈与矩阵格共用这一套，只是形状不同。 */
-.dot, .cell { border: 1.5px solid var(--unstarted); background: transparent; }
+/* 深浅编码（#24）：已确认深蓝、已生成浅蓝、未生成与不适用空白，三档都是实填，圆圈与矩阵格共用。
+   高亮未清再加一圈琥珀，只画在圆圈上；矩阵格太密，放不下。 */
+.dot, .cell { background: var(--unstarted-bg); }
 .dot { flex: none; width: var(--dot); height: var(--dot); border-radius: 50%; }
-:is(.dot, .cell).s-generated { border-color: var(--generated); background: linear-gradient(90deg, var(--generated) 50%, transparent 50%); }
-:is(.dot, .cell).s-confirmed { border-color: var(--confirmed); background: var(--confirmed); }
-:is(.dot, .cell).s-na { border-color: var(--na); background: linear-gradient(135deg, var(--na) 42%, var(--na-slash) 42% 58%, var(--na) 58%); }
-:is(.dot, .cell).attention { box-shadow: 0 0 0 1.5px rgba(var(--card-rgb), 1), 0 0 0 3px var(--amber); }
+:is(.dot, .cell).s-generated { background: var(--generated); }
+:is(.dot, .cell).s-confirmed { background: var(--confirmed); }
+.dot.attention { box-shadow: 0 0 0 1.5px rgba(var(--card-rgb), 1), 0 0 0 3px var(--amber); }
 
 /* 案件页表头：返回、与清单页同款的分段进度条 + 计数。不放目录名，不放当前模块行。 */
 /* 返回键自带留白，Windows 上左边距收窄让它贴近卡片边；mac 左上是红绿灯，照顶行让位。 */
@@ -150,8 +159,7 @@ body.win .case-head { padding-left: 8px; }
   color: var(--ink-2); font: 20px/1 var(--font); cursor: default;
 }
 #back:hover { background: var(--hover); color: var(--ink); }
-.barline { flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; }
-.barline .bar { flex: 1; margin: 0; }
+.case-head .barline { flex: 1; }
 /* 两种形式并排，当前那个填色；不放图标。 */
 .forms { flex: none; display: flex; padding: 2px; gap: 2px; border-radius: 7px; background: var(--hover); }
 .forms button {
@@ -196,67 +204,83 @@ body.win .case-head { padding-left: 8px; }
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .node time { flex: none; font-size: var(--fs-secondary); color: var(--ink-3); font-variant-numeric: tabular-nums; white-space: nowrap; }
+/* 不适用的圆圈与未生成一样是空白，靠整行字变淡区分。 */
+.node.s-na .title { color: var(--ink-3); font-weight: 400; }
 /* 从矩阵格点过来的那一行底色闪一次；系统减少动态时不闪，只定位。 */
 .node.flash { animation: flash 600ms ease-out; }
 @keyframes flash { from { background: var(--flash); } to { background: transparent; } }
 @media (prefers-reduced-motion: reduce) { .node.flash { animation: none; } }
 
-/* 矩阵视（#23）：一块板，底与清单页胶囊同一种、同样向外探出 --capsule-pad，宽:高 = 1.618:1，贴顶，下方留空。
-   板是尺寸容器：格边长 --side 由板高推出——减去上下内边距与模块名那一条（--head，含名与格之间的缝），
-   剩下的放 6 格 + 5 个列内间距；列内间距是边长的 1/5，所以剩下的一共是 7 个边长。模块间距是边长的 1/3。
-   默认窗宽下格约 30px、列内间距约 6px、模块间距约 10px；格只随律师拉窗口变，不随节点数、模块数变。
-   这几个量写在板上、在板里的元素上才代入，所以 100cqh 取的是板的高。 */
+/* 矩阵视（#24）：一块不透明的浅底板，宽与圆角同案件胶囊，内边距 12px；板里一行图例、格阵、横轴。
+   一列七格，格等距，永远铺满板内宽。板是宽度容器：露出的列数取整——板内宽加一道缝、按格距向下取整、
+   再减回那道缝，就是 --lane；格阵与图例都取这个宽、左右平分余量，两者左缘对齐。
+   --lane 在用到它的元素上才代入，100cqw 取的是板的宽。引擎不认 round() 时那一行作废，退回占满板内宽，右缘可能露半格。 */
 .matrix {
-  --name-gap: 4px; --head: calc(var(--fs-min) * 1.5 + var(--name-gap));
-  --side: calc((100cqh - 2 * var(--capsule-pad) - var(--head)) / 7);
-  margin: 0 calc(var(--capsule-pad) * -1); aspect-ratio: 1.618;
-  border-radius: var(--capsule-radius); background: var(--capsule);
-  container-type: size;
+  --lane: calc(round(down, 100cqw + var(--cell-gap), var(--cell-pitch)) - var(--cell-gap));
+  margin: 10px calc(var(--capsule-pad) * -1) 0; padding: 12px;
+  border-radius: var(--capsule-radius); background: var(--plate);
+  container-type: inline-size;
 }
-/* 列排不下就只在板里横向滚，页不滚；只靠原生手势（触控板双指、Shift+滚轮），不把竖向滚轮改成横向。
-   不给滚动条：按住它会被全卡可拖（#17）当成把手拖窗，而且它一出现就吃掉板高。 */
+.legend, .lane { width: 100%; width: var(--lane); margin-inline: auto; }
+/* 图例：色块 + 状态原词 + 计数，一行。 */
+.legend {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 4px 14px; margin-bottom: 10px;
+  font-size: var(--fs-min); color: var(--ink-2); font-variant-numeric: tabular-nums;
+}
+.legend-item { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
+.swatch { width: 10px; height: 10px; border-radius: 2px; background: var(--unstarted-bg); }
+.swatch.s-generated { background: var(--generated); }
+.swatch.s-confirmed { background: var(--confirmed); }
+/* 列排不下就只在矩阵里横向滚，页不滚；只靠原生手势（触控板双指、Shift+滚轮），不把竖向滚轮改成横向。
+   停下时吸附到整列，左右都不露半格。不给滚动条：按住它会被全卡可拖（#17）当成把手拖窗。 */
 .lane {
-  height: 100%; overflow-x: auto; overflow-y: hidden; border-radius: inherit;
-  scrollbar-width: none;
+  overflow-x: auto; overflow-y: hidden;
+  scroll-snap-type: x mandatory; scrollbar-width: none;
 }
 .lane::-webkit-scrollbar { display: none; }
-/* 右缘渐隐：还有列没露出时，板右缘一段（--fade 宽）内容淡出，滚到底收掉。靠滚动驱动的动画——排得下时滚动时间线不生效，
+/* 右缘渐隐：还有列没露出时，右缘一段（--fade 宽）内容淡出，滚到底收掉。靠滚动驱动的动画——排得下时滚动时间线不生效，
    --more 停在初值 0，不淡；有得滚时一直是 1，只在离滚到底还剩一个 --fade 的那段路上收到 0，最后一列正好随之露全。
    引擎不认滚动时间线（animation-timeline）就不淡，滚动照常。 */
 @property --more { syntax: '<number>'; inherits: false; initial-value: 0; }
 @keyframes more { from { --more: 1; } to { --more: 0; } }
 @supports (animation-timeline: scroll()) {
   .lane {
-    --fade: calc(var(--side) * 1.5);
+    --fade: calc(var(--cell-pitch) * 2);
     -webkit-mask-image: linear-gradient(to left, transparent, var(--opaque) calc(var(--more) * var(--fade)));
     mask-image: linear-gradient(to left, transparent, var(--opaque) calc(var(--more) * var(--fade)));
     animation: more linear both; animation-timeline: scroll(self inline);
     animation-range: calc(100% - var(--fade)) 100%;
   }
 }
-/* 模块一组一组横着排；内边距放在这一条上，滚到两头时格与琥珀圈离板边都还留着它。 */
-.strip { display: flex; gap: calc(var(--side) / 3); width: max-content; padding: var(--capsule-pad); }
-/* 一组固定 6 行、按列流：满 6 格自动接到下一列，列数由布局得出，页面不数。 */
-.group { position: relative; padding-top: var(--head); }
+/* 模块一组一组横着排，组间就是一道格缝，所以整条上的格位与底图的砖一一对齐。
+   这一条至少与 .lane 一样宽、至少七行高：这一案的列不够时（空图时一列都没有），右边那段只有底图，就是补到右缘的占位格。 */
+.strip {
+  position: relative; isolation: isolate; display: flex; gap: var(--cell-gap);
+  width: max-content; min-width: 100%; min-height: calc(var(--cell-pitch) * 7 - var(--cell-gap));
+}
+/* 占位格：底图上一块块空白砖，真节点格叠在上面盖住它；模块尾巴与右缘空处露出来的就是占位格。
+   底图只铺格阵那七行高，横轴底下不铺。它是 .strip 的一部分，不在交互区里，按住能拖窗，也没有悬浮。 */
+.strip::before {
+  content: ""; position: absolute; inset: 0 0 auto; height: calc(var(--cell-pitch) * 7 - var(--cell-gap));
+  z-index: -1; background: var(--unstarted-bg);
+  -webkit-mask: var(--cell-tile) 0 0 / var(--cell-pitch) var(--cell-pitch) repeat;
+  mask: var(--cell-tile) 0 0 / var(--cell-pitch) var(--cell-pitch) repeat;
+}
+/* 一组固定 7 行、按列流：满 7 格自动接到下一列，列数由布局得出，页面不数。空模块不占列：整组不显示，flex 的缝也就不算它。 */
+.group { display: flex; flex-direction: column; }
+.group:has(> .cells:empty) { display: none; }
 .cells {
-  display: grid; grid-auto-flow: column; gap: calc(var(--side) / 5);
-  grid-template-rows: repeat(6, var(--side)); grid-auto-columns: var(--side);
+  display: grid; grid-auto-flow: column; gap: var(--cell-gap);
+  grid-template-rows: repeat(7, var(--cell)); grid-auto-columns: var(--cell);
 }
-.cell, .cells:empty::before { border-radius: 22%; }
+.cell { border-radius: var(--cell-radius); scroll-snap-align: start; }
 .cell:hover { filter: brightness(.9); }
-/* 琥珀圈随边长缩放：圆圈那一档固定 3px，格小了会压到邻格上。这里是边长的 1/10，与列内间距（1/5）配着，
-   两枚相邻的琥珀格刚好碰上而不叠。 */
-.cell.attention { box-shadow: 0 0 0 calc(var(--side) / 20) rgba(var(--card-rgb), 1), 0 0 0 calc(var(--side) / 10) var(--amber); }
-/* 空模块：一枚虚线格占位。 */
-.cells:empty::before { content: ""; border: 1px dashed var(--unstarted); }
-/* 模块名横排在它那几列上方、跨列，超出省略，悬浮见全名。名字不撑宽模块：绝对定位，宽就是那几列的宽。
-   只占一列的模块不写名（名字只在格的悬浮概览里）：满 7 格才占第二列，这是选择器，不是页面在数。 */
-.group-name {
-  position: absolute; top: 0; left: 0; right: 0; visibility: hidden;
-  font-size: var(--fs-min); line-height: calc(var(--head) - var(--name-gap)); color: var(--ink-3);
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+/* 横轴标签：只占这组首列那一格宽，竖排模块全名、不截断（汉字与数字都立着）。
+   一列宽的模块挨着排也不互相压；悬浮见全名与模块最近一次动过的日期。 */
+.axis-label {
+  width: var(--cell); margin-top: 8px; font-size: var(--fs-min); line-height: 1; color: var(--ink-3);
+  writing-mode: vertical-rl; text-orientation: upright; letter-spacing: 1px;
 }
-.group:has(.cell:nth-child(7)) .group-name { visibility: visible; }
 
 /* 悬浮概览：自绘浮层，指针穿过它，不挡下面的行。 */
 .pop {

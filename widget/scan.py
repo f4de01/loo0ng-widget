@@ -19,15 +19,32 @@ def display_text(value):
     return value
 
 
-def format_moment(stamp, this_year):
-    """把引擎写的 ISO 时刻预先格式化成「9月21日」，跨年才带年；页面照印，不算日期。"""
+def parse_moment(stamp):
     try:
-        moment = datetime.fromisoformat(stamp)
+        return datetime.fromisoformat(stamp)
     except ValueError:
         raise ValueError("机器可读视图里的时刻不是 ISO 8601 文本")
+
+
+def format_moment(stamp, this_year):
+    """把引擎写的 ISO 时刻预先格式化成「9月21日」，跨年才带年；页面照印，不算日期。"""
+    moment = parse_moment(stamp)
     if moment.year == this_year:
         return "{}月{}日".format(moment.month, moment.day)
     return "{}年{}月{}日".format(moment.year, moment.month, moment.day)
+
+
+def module_row(module, this_year):
+    rows = [node_row(node, this_year) for node in module["节点"]]
+    row = {"标题": display_text(module["标题"]), "状态": display_text(module["状态"]),
+           "进度": progress_of(rows)}
+    # 模块最近一次动过的时刻：节点上已取好的拍板时刻里最晚的那个，矩阵视横轴标签悬浮时印（#24）。一个都没有就不给。
+    stamps = [node["时间"] for node in rows if "时间" in node]
+    if stamps:
+        latest = max(stamps, key=parse_moment)
+        row.update({"时间": latest, "时间显示": format_moment(latest, this_year)})
+    row["节点"] = rows
+    return row
 
 
 def node_row(node, this_year):
@@ -63,11 +80,7 @@ def aggregate(path, view, this_year):
         if type(version) is int and version == 1:
             raise ValueError("老格式（格式版本 1）：这一案工作台不接，照原来的办法办，别对它打起手")
         raise ValueError("机器可读视图的格式版本是 {}，这张卡片只认 2".format(version))
-    modules = []
-    for module in view["模块"]:
-        rows = [node_row(node, this_year) for node in module["节点"]]
-        modules.append({"标题": display_text(module["标题"]), "状态": display_text(module["状态"]),
-                        "进度": progress_of(rows), "节点": rows})
+    modules = [module_row(module, this_year) for module in view["模块"]]
     nodes = [node for module in modules for node in module["节点"]]
     # 引擎的前方装的正是还没生成的那些节点，按图序。下一个与当前节点的后备都指它的第一个，
     # 所以两个都在图序里取第一个未生成的节点：同一个来源，不会各说各话；

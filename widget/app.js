@@ -79,7 +79,7 @@ function countText(progress) {
   return textElement('span', `${progress.已确认} / ${progress.总数}`, 'count');
 }
 
-// 圆圈与矩阵格共用的五态编码：状态换类名，高亮未清再加一个琥珀圈的类。
+// 圆圈与矩阵格共用的深浅编码：状态换类名，高亮未清再加一个类（圆圈画琥珀圈，矩阵格不画，只进悬浮概览）。
 function encode(element, node) {
   if (SHAPE[node.状态]) element.classList.add(SHAPE[node.状态]);
   if (node.高亮 === '未清') element.classList.add('attention');
@@ -111,10 +111,10 @@ function render(data) {
       event.preventDefault();
       enterCase(row.路径);
     });
-    const name = document.createElement('div');
-    name.className = 'name';
-    name.append(textElement('h2', row.目录名),
-      countText(row.进度));
+    // 计数紧跟在进度条右边（#24），名字那一行只剩名字。
+    const barline = document.createElement('div');
+    barline.className = 'barline';
+    barline.append(segmentedBar(row.进度), countText(row.进度));
     const now = document.createElement('div');
     now.className = 'now';
     if (row.当前节点) {
@@ -123,7 +123,7 @@ function render(data) {
     } else {
       now.append(textElement('span', '—'));
     }
-    article.append(name, segmentedBar(row.进度), now);
+    article.append(textElement('h2', row.目录名), barline, now);
     rows.append(article);
   }
   unreadable.replaceChildren();
@@ -200,9 +200,11 @@ function moduleView(row) {
 
 // 节点行四段：圆圈 | 标题 | 时限（一行省略，悬浮见全文）| 时间靠右。时间只印扫描脚本给的显示串，
 // 它按状态给或不给，页面不判。整行是交互区（.interactive）：点了无事，但按住它不拖窗。
+// 行上也挂状态类：不适用的圆圈与未生成一样是空白，靠整行字变淡区分（#24）。
 function nodeLine(node) {
   const line = document.createElement('div');
   line.className = 'node interactive';
+  if (SHAPE[node.状态]) line.classList.add(SHAPE[node.状态]);
   line.append(circle(node), textElement('span', node.标题, 'title'));
   const deadline = textElement('span', node.时限 ?? '', 'deadline');
   if (node.时限) hoverPop(deadline, [node.时限]);
@@ -212,9 +214,11 @@ function nodeLine(node) {
   return line;
 }
 
-// 矩阵视（#23）：一块板，板里一个模块一组格，一格一节点，都照扫描输出的图序摆，页面不排；格的颜色是圆圈那一套类。
-// 格边长由板高推出、六格一列按列流、模块满了接着占下一列、模块名跨它那几列、单列模块不写名，
-// 全在样式表里由布局得出，页面不数节点、不算尺寸。空模块的那枚虚线格也是样式表按「组里没有格」画的，页面不判空。
+// 矩阵视（#24）：一块不透明的浅底板，上面一行图例、中间格阵、下面横轴。
+// 格阵一个模块一组格，一格一节点，都照扫描输出的图序摆，页面不排；格的颜色是圆圈那一套类。
+// 七格一列按列流、模块满了接着占下一列、露出的列数取整、占位格铺到右缘，
+// 全在样式表里由布局得出，页面不数节点、不算尺寸、不补占位格。空模块不占列，也是样式表按「组里没有格」收掉的。
+// 横轴：每组首列下竖排模块全名；模块最近一次动过的日期不上横轴，只在标签的悬浮里。
 function matrixView(row) {
   const view = document.createElement('div');
   view.className = 'matrix';
@@ -223,7 +227,7 @@ function matrixView(row) {
   const strip = document.createElement('div');
   strip.className = 'strip';
   lane.append(strip);
-  view.append(lane);
+  view.append(legend(row.进度), lane);
   row.模块.forEach((module, moduleIndex) => {
     const group = document.createElement('div');
     group.className = 'group';
@@ -240,12 +244,28 @@ function matrixView(row) {
       cell.addEventListener('click', () => locate(row, moduleIndex, nodeIndex));
       cells.append(cell);
     });
-    const name = textElement('span', module.标题, 'group-name');
-    hoverPop(name, [module.标题]);
-    group.append(name, cells);
+    const label = textElement('div', module.标题, 'axis-label');
+    hoverPop(label, module.时间显示 ? [module.标题, module.时间显示] : [module.标题]);
+    group.append(cells, label);
     strip.append(group);
   });
   return view;
+}
+
+// 图例：色块 + 状态原词 + 计数，数字照扫描脚本给的四个计数印；空白一档把未生成与不适用分开写，页面不做加法。
+function legend(progress) {
+  const item = (state, swatch) => {
+    const span = textElement('span', `${state} ${progress[state]}`, 'legend-item');
+    if (swatch) span.prepend(textElement('i', '', `swatch ${SHAPE[state]}`));
+    return span;
+  };
+  const line = document.createElement('div');
+  line.className = 'legend';
+  // 空白那一档共用一个色块：未生成与不适用挨着写成一项。
+  const blank = document.createElement('span');
+  blank.append(item('未生成', true), ' · ', item('不适用', false));
+  line.append(item('已确认', true), item('已生成', true), blank);
+  return line;
 }
 
 // 点一个格：切到模块视，展开那个模块，把那个节点行摆到案件页中间，底色闪一次。

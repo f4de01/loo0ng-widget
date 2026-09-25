@@ -89,9 +89,11 @@ class ScanTests(unittest.TestCase):
         self.assertEqual(row["当前节点"], {"标题": "乙", "状态": "已生成", "高亮": "未清"})
         self.assertEqual(row["模块"], [
             {"标题": "已结束", "状态": "已完成", "进度": counts(总数=1, 已确认=1),
+             "时间": CONFIRMED_AT, "时间显示": "9月22日",
              "节点": [{"标题": "甲", "状态": "已确认", "高亮": "已清",
                      "时间": CONFIRMED_AT, "时间显示": "9月22日"}]},
             {"标题": "当前", "状态": "进行中", "进度": counts(总数=2, 未生成=1, 已生成=1),
+             "时间": MADE_AT, "时间显示": "9月21日",
              "节点": [{"标题": "乙", "状态": "已生成", "高亮": "未清",
                      "时间": MADE_AT, "时间显示": "9月21日"},
                     {"标题": "丙", "状态": "未生成", "高亮": "无文书",
@@ -135,6 +137,28 @@ class ScanTests(unittest.TestCase):
             made("甲", at=ANOTHER_YEAR)]}]})
         node = self.scan("--根", self.root)["行"][0]["模块"][0]["节点"][0]
         self.assertEqual((node["时间"], node["时间显示"]), (ANOTHER_YEAR, "2019年1月5日"))
+
+    def test_module_time_is_the_latest_moment_among_its_nodes(self):
+        """矩阵视横轴标签的悬浮（#24）：每个模块挂它最近一次动过的时刻，确认与生成都算；取最晚的在这里做，页面照印。"""
+        self.case("甲", {**EMPTY, "模块": [
+            {"标题": "甲模块", "状态": "进行中", "节点": [
+                confirmed("甲"), made("乙", at="{}-09-23T08:00:00+08:00".format(THIS_YEAR)),
+                made("丙", at=ANOTHER_YEAR)]},
+            {"标题": "乙模块", "状态": "进行中", "节点": [
+                {"标题": "丁", "状态": "未生成", "高亮": "无文书"},
+                {"标题": "戊", "状态": "不适用", "高亮": "已清"}]},
+            {"标题": "丙模块", "状态": "进行中", "节点": []},
+            {"标题": "丁模块", "状态": "进行中", "节点": [made("己", at=ANOTHER_YEAR)]}],
+            "前方": [{"标题": "乙模块", "节点": [{"标题": "丁"}]}]})
+        甲, 乙, 丙, 丁 = self.scan("--根", self.root)["行"][0]["模块"]
+        latest = "{}-09-23T08:00:00+08:00".format(THIS_YEAR)
+        self.assertEqual((甲["时间"], 甲["时间显示"]), (latest, "9月23日"))
+        # 跨年：显示串带年。
+        self.assertEqual((丁["时间"], 丁["时间显示"]), (ANOTHER_YEAR, "2019年1月5日"))
+        for module in (乙, 丙):
+            with self.subTest(模块=module["标题"]):
+                for key in ("时间", "时间显示"):
+                    self.assertNotIn(key, module)
 
     def test_current_module_is_the_module_the_current_node_lives_in(self):
         """第三层印的是「当前模块 › 当前节点」，模块必须是那个节点自己的。"""
