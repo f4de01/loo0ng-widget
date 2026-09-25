@@ -212,15 +212,21 @@ function nodeLine(node) {
   return line;
 }
 
-// 矩阵视：一列一模块、列内一格一节点，都照扫描输出的图序摆，页面不排；格的颜色是圆圈那一套类。
-// 格边长、间距与列名的竖排全在样式表里由布局得出（每列分得卡片内宽的一份，格占其中 5/6），
-// 页面不数模块、不算尺寸。空模块的那枚虚线格也是样式表按「列里没有格」画的，页面不判空。
+// 矩阵视（#23）：一块板，板里一个模块一组格，一格一节点，都照扫描输出的图序摆，页面不排；格的颜色是圆圈那一套类。
+// 格边长由板高推出、六格一列按列流、模块满了接着占下一列、模块名跨它那几列、单列模块不写名，
+// 全在样式表里由布局得出，页面不数节点、不算尺寸。空模块的那枚虚线格也是样式表按「组里没有格」画的，页面不判空。
 function matrixView(row) {
   const view = document.createElement('div');
   view.className = 'matrix';
+  const lane = document.createElement('div');
+  lane.className = 'lane';
+  const strip = document.createElement('div');
+  strip.className = 'strip';
+  lane.append(strip);
+  view.append(lane);
   row.模块.forEach((module, moduleIndex) => {
-    const column = document.createElement('div');
-    column.className = 'column';
+    const group = document.createElement('div');
+    group.className = 'group';
     const cells = document.createElement('div');
     cells.className = 'cells';
     module.节点.forEach((node, nodeIndex) => {
@@ -234,10 +240,10 @@ function matrixView(row) {
       cell.addEventListener('click', () => locate(row, moduleIndex, nodeIndex));
       cells.append(cell);
     });
-    const name = textElement('span', module.标题, 'column-name');
+    const name = textElement('span', module.标题, 'group-name');
     hoverPop(name, [module.标题]);
-    column.append(cells, name);
-    view.append(column);
+    group.append(name, cells);
+    strip.append(group);
   });
   return view;
 }

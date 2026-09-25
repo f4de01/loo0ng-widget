@@ -12,7 +12,6 @@
   --edge: rgba(0, 0, 0, .06); --highlight: rgba(255, 255, 255, .55);
   --card-alpha: .9;
   --dot: 12px;
-  --cell-min: 10px; --cell-max: 26px;
   --ease: 180ms ease-out;
   --card-rgb: 235, 240, 245;
   --ink: #1d2b3a; --ink-2: #4a5a6b; --ink-3: #5c6b7c;
@@ -20,6 +19,8 @@
   --na: #d3d9e0; --na-slash: #9ba5b0;
   --amber: #b5761f;
   --capsule: rgba(255, 255, 255, .55); --capsule-hover: rgba(255, 255, 255, .85);
+  /* 遮罩只取不透明度：矩阵板右缘渐隐用它当「完全不透」那一端。 */
+  --opaque: #000;
   --hover: rgba(29, 43, 58, .06); --flash: rgba(43, 90, 138, .2); --scroll-thumb: rgba(29, 43, 58, .22); --pop-rgb: 252, 253, 255;
   --error-ink: #974c35; --error-bg: #f1e6dc;
   /* mac 红绿灯照系统的样子，不随卡片的色调走。 */
@@ -200,31 +201,62 @@ body.win .case-head { padding-left: 8px; }
 @keyframes flash { from { background: var(--flash); } to { background: transparent; } }
 @media (prefers-reduced-motion: reduce) { .node.flash { animation: none; } }
 
-/* 矩阵视（#19）：一列一模块，列与格都照输出的次序摆。每列均分卡片内宽，一份就是「内宽 ÷ 模块数」，
-   夹在 [--cell-min, --cell-max] 的 1.2 倍之间；格占一份的 5/6、间距占 1/6，即间距是边长的 1/5。
-   列是容器（container-type），格边长 --side 用 100cqw 取这一份的宽（用物理的 cqw：竖排的列名里 cqi 会落到另一根轴上），所以页面不数模块、不算尺寸。
-   模块多到一份不足下限时，格停在下限，案件页横向滚动。 */
-.matrix { display: flex; padding-top: 10px; }
-.column {
-  flex: 1 1 0; min-width: calc(var(--cell-min) * 1.2); max-width: calc(var(--cell-max) * 1.2);
-  display: flex; flex-direction: column; container-type: inline-size;
-  --side: calc(100cqw / 1.2);
+/* 矩阵视（#23）：一块板，底与清单页胶囊同一种、同样向外探出 --capsule-pad，宽:高 = 1.618:1，贴顶，下方留空。
+   板是尺寸容器：格边长 --side 由板高推出——减去上下内边距与模块名那一条（--head，含名与格之间的缝），
+   剩下的放 6 格 + 5 个列内间距；列内间距是边长的 1/5，所以剩下的一共是 7 个边长。模块间距是边长的 1/3。
+   默认窗宽下格约 30px、列内间距约 6px、模块间距约 10px；格只随律师拉窗口变，不随节点数、模块数变。
+   这几个量写在板上、在板里的元素上才代入，所以 100cqh 取的是板的高。 */
+.matrix {
+  --name-gap: 4px; --head: calc(var(--fs-min) * 1.5 + var(--name-gap));
+  --side: calc((100cqh - 2 * var(--capsule-pad) - var(--head)) / 7);
+  margin: 0 calc(var(--capsule-pad) * -1); aspect-ratio: 1.618;
+  border-radius: var(--capsule-radius); background: var(--capsule);
+  container-type: size;
 }
-.cells { display: flex; flex-direction: column; gap: calc(var(--side) / 5); }
-.cell, .cells:empty::before { width: var(--side); aspect-ratio: 1; border-radius: 22%; }
+/* 列排不下就只在板里横向滚，页不滚；只靠原生手势（触控板双指、Shift+滚轮），不把竖向滚轮改成横向。
+   不给滚动条：按住它会被全卡可拖（#17）当成把手拖窗，而且它一出现就吃掉板高。 */
+.lane {
+  height: 100%; overflow-x: auto; overflow-y: hidden; border-radius: inherit;
+  scrollbar-width: none;
+}
+.lane::-webkit-scrollbar { display: none; }
+/* 右缘渐隐：还有列没露出时，板右缘一段（--fade 宽）内容淡出，滚到底收掉。靠滚动驱动的动画——排得下时滚动时间线不生效，
+   --more 停在初值 0，不淡；有得滚时一直是 1，只在离滚到底还剩一个 --fade 的那段路上收到 0，最后一列正好随之露全。
+   引擎不认滚动时间线（animation-timeline）就不淡，滚动照常。 */
+@property --more { syntax: '<number>'; inherits: false; initial-value: 0; }
+@keyframes more { from { --more: 1; } to { --more: 0; } }
+@supports (animation-timeline: scroll()) {
+  .lane {
+    --fade: calc(var(--side) * 1.5);
+    -webkit-mask-image: linear-gradient(to left, transparent, var(--opaque) calc(var(--more) * var(--fade)));
+    mask-image: linear-gradient(to left, transparent, var(--opaque) calc(var(--more) * var(--fade)));
+    animation: more linear both; animation-timeline: scroll(self inline);
+    animation-range: calc(100% - var(--fade)) 100%;
+  }
+}
+/* 模块一组一组横着排；内边距放在这一条上，滚到两头时格与琥珀圈离板边都还留着它。 */
+.strip { display: flex; gap: calc(var(--side) / 3); width: max-content; padding: var(--capsule-pad); }
+/* 一组固定 6 行、按列流：满 6 格自动接到下一列，列数由布局得出，页面不数。 */
+.group { position: relative; padding-top: var(--head); }
+.cells {
+  display: grid; grid-auto-flow: column; gap: calc(var(--side) / 5);
+  grid-template-rows: repeat(6, var(--side)); grid-auto-columns: var(--side);
+}
+.cell, .cells:empty::before { border-radius: 22%; }
 .cell:hover { filter: brightness(.9); }
-/* 琥珀圈随边长缩放：圆圈那一档 3px 比最小间距（约 2px）还宽，会压到邻格上。这里最宽约 2.6px，最窄约 1px，
+/* 琥珀圈随边长缩放：圆圈那一档固定 3px，格小了会压到邻格上。这里是边长的 1/10，与列内间距（1/5）配着，
    两枚相邻的琥珀格刚好碰上而不叠。 */
 .cell.attention { box-shadow: 0 0 0 calc(var(--side) / 20) rgba(var(--card-rgb), 1), 0 0 0 calc(var(--side) / 10) var(--amber); }
 /* 空模块：一枚虚线格占位。 */
-.cells:empty::before { content: ""; display: block; border: 1px dashed var(--unstarted); }
-/* 列名竖排放列底，最多 6 字、超出省略，悬浮见全名。列一样高（flex 拉齐），列名框一样长，所以各列列名顶端对齐。 */
-.column-name {
-  margin-top: auto; padding-top: 8px; box-sizing: content-box;
-  writing-mode: vertical-rl; height: 6em; width: var(--side);
-  font-size: min(var(--fs-min), var(--side)); line-height: var(--side); color: var(--ink-3);
+.cells:empty::before { content: ""; border: 1px dashed var(--unstarted); }
+/* 模块名横排在它那几列上方、跨列，超出省略，悬浮见全名。名字不撑宽模块：绝对定位，宽就是那几列的宽。
+   只占一列的模块不写名（名字只在格的悬浮概览里）：满 7 格才占第二列，这是选择器，不是页面在数。 */
+.group-name {
+  position: absolute; top: 0; left: 0; right: 0; visibility: hidden;
+  font-size: var(--fs-min); line-height: calc(var(--head) - var(--name-gap)); color: var(--ink-3);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
+.group:has(.cell:nth-child(7)) .group-name { visibility: visible; }
 
 /* 悬浮概览：自绘浮层，指针穿过它，不挡下面的行。 */
 .pop {
