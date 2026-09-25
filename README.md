@@ -4,7 +4,7 @@
 
 它是一个 [Zebar](https://github.com/glzr-io/zebar) 组件包，不是独立应用，也不是 Claude Code 插件。窗口、拖动、置顶、多显示器、托盘常驻、安装与更新都由 Zebar 负责；这个仓库里只有组件包本身。
 
-状态：Windows 上首版（#8）与呈现定形（#20）两轮人手验收都已通过；Python 3.9 全套测试通过。逐项证据见 [验收记录](docs/acceptance-windows.md)。mac 实机验收另进交付票。
+状态：Windows 上首版（#8）与呈现定形（#20）两轮人手验收都已通过，矩阵视重做（#24，0.2.0）律师在宿主里看过；Python 3.9 全套测试通过。逐项证据见 [验收记录](docs/acceptance-windows.md)。mac 实机验收另进交付票。
 
 ## 它读什么
 
@@ -33,7 +33,7 @@ mac：打开**终端**，整行粘贴（此命令尚未在 mac 验收）：
 ( set -eu; dest="$HOME/.glzr/zebar/loo0ng"; if [ -e "$dest" ] || [ -L "$dest" ]; then printf '%s\n' 'loo0ng already exists; move it outside the Zebar directory before installing.' >&2; exit 1; fi; stage=$(mktemp -d); trap 'rm -rf "$stage"' EXIT; curl -fL 'https://github.com/f4de01/loo0ng-widget/archive/refs/heads/main.zip' -o "$stage/pack.zip"; unzip -q "$stage/pack.zip" -d "$stage"; mkdir -p "$(dirname "$dest")"; cp -R "$stage/loo0ng-widget-main/widget" "$dest"; printf 'Installed: %s\n' "$dest" )
 ```
 
-安装位置是 `~/.glzr/zebar/loo0ng/`，Windows 展开为 `C:\Users\<用户名>\.glzr\zebar\loo0ng\`。命令包含整个 `vendor/` 目录。若已有安装，先关闭组件，将旧的 `loo0ng` 文件夹移到 Zebar 目录外备份，再运行命令；更新后按[开发说明](docs/development.md#页面与宿主)清该包的 WebView 缓存。
+安装位置是 `~/.glzr/zebar/loo0ng/`，Windows 展开为 `C:\Users\<用户名>\.glzr\zebar\loo0ng\`。命令包含整个 `vendor/` 目录。已经装过的照下面的[更新](#更新)做：安装命令见到已有安装会拒绝，不会覆盖。
 
 创建 UTF-8 文件 `~/.loo0ng/卡片设置.json`（父目录不存在就先创建）。Windows 示例：
 
@@ -48,6 +48,22 @@ mac 示例：
 ```
 
 把示例换成实际的绝对路径，可以填多个根目录。Windows 路径用 `/`，或把每个反斜杠写成 `\\`。根目录下面一层放各案工作区，卡片据此发现案件。安装命令不会创建或覆盖这份设置。
+
+### 更新
+
+新版本就在公开仓库的 `main` 上（当前版本号见 `widget/zpack.json`，各版说明见 GitHub Releases）。更新是三步：把旧包挪开、重跑上面的安装命令、清掉这个包的 WebView 缓存。设置文件 `~/.loo0ng/卡片设置.json` 不在包里，更新不碰它。
+
+1. 退出 Zebar：右键托盘里的 Zebar 图标 → `Exit`。只关组件不够，缓存被占着删不掉。
+2. 挪开旧包、清缓存。Windows：在 **PowerShell** 里整行粘贴。它把旧包挪到用户目录下一个带时间的备份文件夹，只删 `loo0ng` 这一个包的缓存（`%APPDATA%\zebar\webview-cache\loo0ng`），别的组件不动：
+
+   ```powershell
+   & { $ErrorActionPreference = 'Stop'; if (Get-Process zebar -ErrorAction SilentlyContinue) { throw 'Zebar is running; exit it from the tray first.' }; $pack = Join-Path $env:USERPROFILE '.glzr/zebar/loo0ng'; $old = Join-Path $env:USERPROFILE ('loo0ng-old-' + (Get-Date -Format 'yyyyMMdd-HHmmss')); Move-Item -LiteralPath $pack -Destination $old; $cache = Join-Path $env:APPDATA 'zebar/webview-cache/loo0ng'; if (Test-Path -LiteralPath $cache) { Remove-Item -LiteralPath $cache -Recurse -Force }; Write-Output "Old pack moved to: $old" }
+   ```
+
+   mac：把 `~/.glzr/zebar/loo0ng` 挪到 Zebar 目录外（比如 `~/loo0ng-old`）。mac 上这个包的 WebView 缓存在哪还没验过；更新后卡片若还是旧样子，多半是缓存没清。
+3. 重跑上面的安装命令，再照[打开卡片](#打开卡片)打开。清缓存会一并清掉卡片记住的窗口位置与停在哪一页，要重新摆一次。
+
+确认新版正常后，备份文件夹可以删掉。
 
 在 Zebar 里打开「loo0ng → 案件卡片 → 默认」；若列表里还没有，退出并重新启动 Zebar。卡片会出现在 Windows 任务栏 / mac 程序坞里。未配置好根目录时，卡片会显示设置路径和填写示例，修好后下一轮扫描自动恢复。
 
