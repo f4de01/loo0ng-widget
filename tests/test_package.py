@@ -16,6 +16,8 @@ ZPACK = json.loads((PACKAGE / "zpack.json").read_text(encoding="utf-8"))
 WIDGET = ZPACK["widgets"][0]
 # 静态导入的说明符：import x from"./y.js"、export ... from"./y.js"、import"./y.js"。
 SPECIFIER = re.compile(r'(?:\bfrom|\bimport)\s*["\']([^"\']+)["\']')
+# 颜色字面量：#hex，以及括号里直接写数字的 rgb()/rgba()/hsl()/hsla()；rgba(var(--x), .9) 不算。
+COLOR_LITERAL = re.compile(r'#[0-9a-fA-F]{3,8}\b|\b(?:rgb|hsl)a?\(\s*[\d.]')
 
 
 def packaged_files():
@@ -96,6 +98,15 @@ class PackageTests(unittest.TestCase):
         app = (PACKAGE / "app.js").read_text(encoding="utf-8")
         self.assertNotIn("扫一次", app)
         self.assertIn("get('dev')", app)
+
+    def test_every_color_lives_in_the_root_variable_table(self):
+        """ADR-0004：颜色全抽成变量。#22 换冷色调只换 `:root` 那一张表，别处不许散落色值。"""
+        css = (PACKAGE / "style.css").read_text(encoding="utf-8")
+        css = re.sub(r"/\*.*?\*/", "", css, flags=re.S)
+        root = re.search(r":root\s*\{[^}]*\}", css)
+        self.assertIsNotNone(root, "样式表里没有 :root 变量表")
+        rest = css[:root.start()] + css[root.end():]
+        self.assertEqual(COLOR_LITERAL.findall(rest), [])
 
 
 if __name__ == "__main__":
