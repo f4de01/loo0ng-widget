@@ -126,6 +126,18 @@ class PackageTests(unittest.TestCase):
         page = (PACKAGE / "index.html").read_text(encoding="utf-8")
         self.assertRegex(page, r'<button id="archive" type="button"[^>]*>归档</button>')
 
+    def test_the_archived_fold_is_drawn_from_the_scan_list_and_count(self):
+        """#27：「已归档 N」的名单与 N 都照扫描脚本给的画，页面不筛、不数；每案一枚「恢复」。"""
+        app = re.sub(r"//[^\n]*|/\*.*?\*/", "", (PACKAGE / "app.js").read_text(encoding="utf-8"),
+                     flags=re.S)
+        # 不用 assertIn：它会把整份页面脚本打进失败信息。
+        self.assertTrue("data.已归档数" in app, "「已归档 N」的 N 不是扫描脚本给的计数")
+        self.assertTrue("of data.已归档)" in app, "已归档的行不是照扫描脚本给的名单画的")
+        self.assertFalse("已归档.length" in app, "页面自己数了已归档的案件")
+        self.assertTrue("'恢复'" in app, "已归档的行上没有「恢复」")
+        page = (PACKAGE / "index.html").read_text(encoding="utf-8")
+        self.assertRegex(page, r'<button id="archived-toggle" type="button"[^>]*aria-expanded="false"')
+
     def test_every_color_lives_in_the_root_variable_table(self):
         """ADR-0004：颜色全抽成变量。#22 换冷色调只换 `:root` 那一张表，别处不许散落色值。"""
         css = (PACKAGE / "style.css").read_text(encoding="utf-8")

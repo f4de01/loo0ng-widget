@@ -277,6 +277,9 @@ class ScanTests(unittest.TestCase):
         self.assertEqual(data["案件数"], 1)
         self.assertEqual(data["读不出"], [])
         self.assertEqual(data["根目录读不出"], [])
+        # 挪走、改名的归档记录由页面照旧留着，扫描脚本不列出来。
+        self.assertEqual(data["已归档"], [])
+        self.assertEqual(data["已归档数"], 0)
 
     def test_archived_paths_match_as_given_without_normalizing(self):
         """路径按字符串原样比对：页面交回的就是扫描给的那串，别的写法不算同一案。"""
@@ -284,6 +287,46 @@ class ScanTests(unittest.TestCase):
         data = self.scan("--根", self.root, "--归档", str(甲) + os.sep)
         self.assertEqual([row["目录名"] for row in data["行"]], ["甲"])
         self.assertEqual(data["案件数"], 1)
+        self.assertEqual(data["已归档"], [])
+
+    def test_archived_cases_come_back_as_a_counted_list(self):
+        """#27：拿掉已归档的同时另交回 `已归档`（目录名、路径）与它的计数；页面不筛、不数。"""
+        self.case("甲")
+        乙 = self.case("乙")
+        self.case("丙")
+        data = self.scan("--根", self.root, "--归档", 乙)
+        self.assertEqual(data["已归档"], [{"目录名": "乙", "路径": str(乙)}])
+        self.assertEqual(data["已归档数"], 1)
+        nothing = self.scan("--根", self.root)
+        self.assertEqual(nothing["已归档"], [])
+        self.assertEqual(nothing["已归档数"], 0)
+
+    def test_archived_list_uses_chinese_name_order_not_the_four_tiers(self):
+        """按清单页同一套中文序排：乙有待看、在清单页会排在空图的甲前面，在 `已归档` 里只按目录名。"""
+        甲 = self.case("甲")
+        乙 = self.case("乙", {**EMPTY, "模块": [{"标题": "甲模块", "状态": "进行中", "节点": [
+            made("甲")]}]})
+        self.case("丙")
+        data = self.scan("--根", self.root, "--归档", 乙, "--归档", 甲)
+        self.assertEqual(data["已归档"], [{"目录名": "甲", "路径": str(甲)},
+                                         {"目录名": "乙", "路径": str(乙)}])
+        self.assertEqual(data["已归档数"], 2)
+        self.assertEqual([row["目录名"] for row in data["行"]], ["丙"])
+
+    def test_an_archived_case_that_cannot_be_read_is_listed_nowhere(self):
+        """归档的一案视图坏了：不在 `行`、不在 `已归档`，只照实进 `读不出`；等它读得出了再出现。"""
+        self.case("甲")
+        乙 = self.case("乙", {**EMPTY, "格式版本": 3})
+        丙 = self.case("丙")
+        (丙 / "图视图.json").write_text("{", encoding="utf-8")
+        data = self.scan("--根", self.root, "--归档", 乙, "--归档", 丙)
+        self.assertEqual([row["目录名"] for row in data["行"]], ["甲"])
+        self.assertEqual(data["已归档"], [])
+        self.assertEqual(data["已归档数"], 0)
+        self.assertEqual(sorted(row["目录名"] for row in data["读不出"]), sorted(["乙", "丙"]))
+        self.case("乙")
+        self.assertEqual(self.scan("--根", self.root, "--归档", 乙)["已归档"],
+                         [{"目录名": "乙", "路径": str(乙)}])
 
     def test_empty_and_not_applicable_graphs(self):
         self.case("甲")

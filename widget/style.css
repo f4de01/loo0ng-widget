@@ -120,7 +120,7 @@ body.mac .top { padding-left: 56px; }
 .case-row + .case-row { margin-top: var(--capsule-gap); }
 .case-row:hover { background: var(--capsule-hover); }
 /* 整行可点的两种行：键盘走到时焦点框画在行内，不被卡片的圆角裁掉。 */
-.case-row:focus-visible, .module-head:focus-visible { outline: 2px solid var(--confirmed); outline-offset: -2px; }
+.case-row:focus-visible, .module-head:focus-visible, #archived-toggle:focus-visible { outline: 2px solid var(--confirmed); outline-offset: -2px; }
 .case-row h2 { margin: 0; font-size: var(--fs-title); font-weight: 600; overflow-wrap: anywhere; }
 .count { font-variant-numeric: tabular-nums; font-size: var(--fs-secondary); color: var(--ink-2); white-space: nowrap; }
 .case-row .now {
@@ -168,12 +168,12 @@ body.win .case-head { padding-left: 8px; }
 }
 .forms button:hover { color: var(--ink); }
 .forms button[aria-pressed="true"] { background: var(--confirmed); color: rgb(var(--card-rgb)); }
-/* 归档与形式按钮同高同字号，不填色：它是一次动作，不是一个选中态。 */
-#archive {
+/* 归档与形式按钮同高同字号，不填色：它是一次动作，不是一个选中态。已归档那几行的「恢复」同款（#27）。 */
+#archive, .archived-row button {
   flex: none; height: 22px; padding: 0 8px; border: 0; border-radius: 7px; background: transparent;
   color: var(--ink-2); font: var(--fs-min)/1 var(--font); cursor: default;
 }
-#archive:hover { background: var(--hover); color: var(--ink); }
+#archive:hover, .archived-row button:hover { background: var(--hover); color: var(--ink); }
 
 /* 模块视：模块行是原生 button，整行可点、可折叠，允许多开。模块行与清单页的案件同款胶囊（#22），
    节点行不做胶囊，挂在它下面。 */
@@ -185,19 +185,19 @@ body.win .case-head { padding-left: 8px; }
   color: inherit; font: inherit; text-align: left; cursor: default;
 }
 .module-head:hover { background: var(--capsule-hover); }
-.module-head .chevron {
+.module-head .chevron, #archived-toggle .chevron {
   flex: none; width: 0; height: 0; margin: 0 2px;
   border: 4px solid transparent; border-left: 5px solid var(--ink-3); border-right-width: 0;
   transition: transform var(--ease);
 }
-.module.open .chevron { transform: rotate(90deg); }
+.module.open .chevron, #archived.open .chevron { transform: rotate(90deg); }
 .module-head .title { flex: 1; min-width: 0; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .module-head .state { flex: none; font-size: var(--fs-secondary); color: var(--ink-3); }
 .module-head .state.m-done { color: var(--confirmed); }
 .module-head .state.m-na { text-decoration: line-through; }
 .module .nodes { display: none; padding: 2px 0 8px; }
 .module.open .nodes { display: block; }
-@media (prefers-reduced-motion: reduce) { .module-head .chevron { transition: none; } }
+@media (prefers-reduced-motion: reduce) { .module-head .chevron, #archived-toggle .chevron { transition: none; } }
 
 /* 节点行四段：圆圈 | 标题 | 时限（一行省略）| 时间靠右。标题占它要的宽，挤了才省略；时限吃剩下的。 */
 .node {
@@ -303,6 +303,24 @@ body.win .case-head { padding-left: 8px; }
   font-size: var(--fs-secondary); overflow-wrap: anywhere;
 }
 .root-error b { color: var(--ink-2); font-weight: 500; }
+/* 已归档 N（#27）：清单页最末一行，比案件胶囊轻一档：不填底、小一号字，折叠三角与模块行同一个。
+   展开后每案一行，名字与三角后的字对齐，只有目录名与「恢复」。 */
+#archived { margin-top: var(--capsule-gap); }
+#archived-toggle {
+  display: flex; align-items: center; gap: 8px; width: calc(100% + var(--capsule-pad) * 2);
+  margin: 0 calc(var(--capsule-pad) * -1); padding: 6px var(--capsule-pad);
+  border: 0; border-radius: var(--capsule-radius); background: transparent;
+  color: var(--ink-3); font: var(--fs-secondary)/1.45 var(--font); text-align: left; cursor: default;
+}
+#archived-toggle:hover { background: var(--hover); color: var(--ink-2); }
+#archived-rows { display: none; }
+#archived.open #archived-rows { display: block; }
+.archived-row {
+  display: flex; align-items: center; gap: 8px; min-height: 26px; padding-left: 17px;
+  font-size: var(--fs-secondary); color: var(--ink-2);
+}
+.archived-row .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
 /* 一轮扫描失败：顶部一条横幅，下一轮成功即消失，中间的画面留着。
    设置没填好：整页只剩那段可照做的指引。两样同一种底。 */
 .banner, .guide {

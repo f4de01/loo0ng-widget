@@ -1,6 +1,9 @@
 const heading = document.querySelector('#heading');
 const rows = document.querySelector('#rows');
 const rootErrors = document.querySelector('#root-errors');
+const archivedFold = document.querySelector('#archived');
+const archivedToggle = document.querySelector('#archived-toggle');
+const archivedRows = document.querySelector('#archived-rows');
 const guide = document.querySelector('#settings-error');
 const banner = document.querySelector('#scan-error');
 const card = document.querySelector('.card');
@@ -142,6 +145,21 @@ function render(data) {
     const line = textElement('div', '', 'root-error');
     line.append(textElement('b', failure.目录名), document.createTextNode(`：${failure.原因}`));
     rootErrors.append(line);
+  }
+  // 已归档 N（#27）：名单与 N 都是扫描脚本给的，这一轮读不出、挪走的它不列；页面不筛、不数，N 为 0 整行不出现。
+  // 每案一行只有目录名与「恢复」：不画进度，行点了无事，但按住它不拖窗。
+  archivedFold.hidden = !data.已归档数;
+  // 展开与否记在那一行自己的类上，只活在这一次里；整行消失时一并折回去，再出现仍是折着的。
+  if (archivedFold.hidden) setArchivedOpen(false);
+  document.querySelector('#archived-count').textContent = data.已归档数;
+  archivedRows.replaceChildren();
+  for (const entry of data.已归档) {
+    const line = textElement('div', '', 'archived-row interactive');
+    const restoreButton = textElement('button', '恢复');
+    restoreButton.type = 'button';
+    restoreButton.addEventListener('click', () => restore(entry.路径));
+    line.append(textElement('span', entry.目录名, 'name'), restoreButton);
+    archivedRows.append(line);
   }
   latestScan = data;
   renderCase();
@@ -374,6 +392,21 @@ document.querySelector('#archive').addEventListener('click', () => {
   leaveCase();
   rescan();
 });
+
+// 恢复一案（#27）：把它的路径从名单里拿掉、立刻重扫；它回到清单页该在的位置、「在办案件 N」加一，都是扫描脚本给的。
+// 与归档一样，名单存不进去就不改。这里改的是本地存储里那份名单，不是扫描来的数据。
+function restore(path) {
+  const next = archived.filter(candidate => candidate !== path);
+  if (keep(ARCHIVED, next)) archived = next;
+  rescan();
+}
+
+function setArchivedOpen(open) {
+  archivedFold.classList.toggle('open', open);
+  archivedToggle.setAttribute('aria-expanded', String(open));
+}
+
+archivedToggle.addEventListener('click', () => setArchivedOpen(!archivedFold.classList.contains('open')));
 
 // 启动时回到记住的那一页，不滑：打开卡片就该停在那里，而不是看它从清单页滑过去。
 card.classList.add('still');

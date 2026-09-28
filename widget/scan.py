@@ -97,6 +97,11 @@ def aggregate(path, view, this_year):
     }
 
 
+def name_order(row):
+    """中文序：系统 zh_CN.UTF-8 排序，目录名相同时再按路径固定顺序。"""
+    return locale.strxfrm(row["目录名"]), row["目录名"], row["路径"]
+
+
 def case_order(row):
     if row["待看数"]:
         tier = 0
@@ -106,14 +111,16 @@ def case_order(row):
         tier = 2
     else:
         tier = 3
-    return tier, locale.strxfrm(row["目录名"]), row["目录名"], row["路径"]
+    return (tier,) + name_order(row)
 
 
 def scan(roots, settings, archived):
     scanned = datetime.now().astimezone()
     rows = []
     # 已归档的案件（#26）：页面把扫描给过的路径原样交回来，按字符串比对，不做规范化。
+    # 这一轮读得出的那几案另交回一份名单（#27），只有目录名与路径；读不出、挪走的不列。
     archived = set(archived)
+    archived_rows = []
     # 两类读不出分开交（ADR-0005）：根目录是律师自己填的设置，页面照画；逐案的只给开发者看，页面不画。
     root_errors = []
     case_errors = []
@@ -131,7 +138,9 @@ def scan(roots, settings, archived):
                     continue
                 view = json.loads((path / "图视图.json").read_text(encoding="utf-8"))
                 row = aggregate(path, view, scanned.year)
-                if row["路径"] not in archived:
+                if row["路径"] in archived:
+                    archived_rows.append({"目录名": row["目录名"], "路径": row["路径"]})
+                else:
                     rows.append(row)
             except (OSError, ValueError, KeyError, TypeError) as error:
                 if isinstance(error, json.JSONDecodeError):
@@ -146,9 +155,12 @@ def scan(roots, settings, archived):
                     reason = "机器可读视图结构不完整或字段类型不正确"
                 case_errors.append({"目录名": path.name, "路径": str(path), "原因": reason})
     rows.sort(key=case_order)
+    # 已归档的只按目录名排：清单页那四档看进度，这里不画进度。
+    archived_rows.sort(key=name_order)
     return {"扫描时间": scanned.isoformat(timespec="seconds"),
             "设置文件": str(settings), "根目录": roots, "行": rows, "根目录读不出": root_errors,
-            "读不出": case_errors, "案件数": len(rows)}
+            "读不出": case_errors, "案件数": len(rows),
+            "已归档": archived_rows, "已归档数": len(archived_rows)}
 
 
 def read_settings(settings):

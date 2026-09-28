@@ -34,6 +34,11 @@
       <section class="page" id="list-page" aria-label="清单页">
         <div id="rows"></div>
         <div id="root-errors"></div>
+        <!-- 已归档 N（#27）：清单页末尾一行，默认折叠，N 为 0 不出现；展开后每案一行，只有目录名与「恢复」。 -->
+        <div id="archived" hidden>
+          <button id="archived-toggle" type="button" aria-expanded="false"><span class="chevron"></span>已归档 <span id="archived-count"></span></button>
+          <div id="archived-rows"></div>
+        </div>
         <p class="guide" id="settings-error" role="alert" hidden></p>
       </section>
       <section class="page" id="case-page" aria-label="案件页"></section>
