@@ -118,13 +118,17 @@ class PackageTests(unittest.TestCase):
         self.assertEqual(keys, {"loo0ng.window-position", "loo0ng.place", "loo0ng.form",
                                 "loo0ng.archived"})
 
-    def test_the_page_hands_archived_paths_to_the_scan_and_has_an_archive_button(self):
-        """#26：已归档的路径一个一条 `--归档` 交给扫描脚本，页面不筛不数；表头有「归档」按钮。"""
+    def test_the_page_hands_archived_paths_to_the_scan_and_archives_from_the_list(self):
+        """#26：已归档的路径一个一条 `--归档` 交给扫描脚本，页面不筛不数。
+        #29：入口在清单页每案右侧的图标，案件页表头不再有「归档」按钮。"""
         app = (PACKAGE / "app.js").read_text(encoding="utf-8")
         # 不用 assertIn：它会把整份页面脚本打进失败信息。
         self.assertTrue("'--归档'" in app, "页面没把已归档的路径交给扫描脚本")
+        self.assertTrue("#archive-template" in app, "清单页的行没用归档图标的模板")
         page = (PACKAGE / "index.html").read_text(encoding="utf-8")
-        self.assertRegex(page, r'<button id="archive" type="button"[^>]*>归档</button>')
+        self.assertNotIn('id="archive"', page)
+        self.assertRegex(page, r'<template id="archive-template">\s*<button class="archive" type="button" '
+                               r'aria-label="归档">\s*<svg')
 
     def test_the_archived_fold_is_drawn_from_the_scan_list_and_count(self):
         """#27：「已归档 N」的名单与 N 都照扫描脚本给的画，页面不筛、不数；每案一枚「恢复」。"""

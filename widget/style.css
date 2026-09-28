@@ -20,7 +20,7 @@
   --cell-tile: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='17.5' height='17.5'%3E%3Crect width='14' height='14' rx='3'/%3E%3C/svg%3E");
   --ease: 180ms ease-out;
   --card-rgb: 235, 240, 245;
-  --ink: #1d2b3a; --ink-2: #4a5a6b; --ink-3: #5c6b7c;
+  --ink: #1d2b3a; --ink-2: #4a5a6b; --ink-3: #5c6b7c; --ink-4: #9aa6b2;
   --confirmed: #2566d0; --generated: #86acea; --unstarted-bg: #d6dde5;
   --na: #d3d9e0; --na-slash: #9ba5b0;
   --amber: #b5761f;
@@ -114,11 +114,22 @@ body.mac .top { padding-left: 56px; }
 /* 清单页：一案一条胶囊（#22），三层，胶囊之间不画分隔线。
    整条是交互区（.interactive）：按住它不拖窗，点它进案件页（#18）。 */
 .case-row {
-  margin: 0 calc(var(--capsule-pad) * -1); padding: 10px var(--capsule-pad) 11px;
+  position: relative;
+  /* 右边多让 30px 给归档图标（#29）：图标 28px，向胶囊边探出 6px，离字留 8px。 */
+  margin: 0 calc(var(--capsule-pad) * -1); padding: 10px calc(var(--capsule-pad) + 30px) 11px var(--capsule-pad);
   border-radius: var(--capsule-radius); background: var(--capsule);
 }
 .case-row + .case-row { margin-top: var(--capsule-gap); }
 .case-row:hover { background: var(--capsule-hover); }
+/* 归档图标（#29）：每案右侧垂直居中，常驻淡色，停上去变深；行右边让出它的位置（见 .case-row），字不钻到图标底下。
+   它是行里的原生 button，点它只归档、不进案件页。 */
+.case-row .archive {
+  position: absolute; top: 50%; right: calc(var(--capsule-pad) - 6px); transform: translateY(-50%);
+  display: grid; place-items: center; width: 28px; height: 28px; padding: 0;
+  border: 0; border-radius: 8px; background: transparent; color: var(--ink-4); cursor: default;
+}
+.case-row .archive:hover { background: var(--hover); color: var(--ink); }
+.case-row .archive:focus-visible { outline: 2px solid var(--confirmed); outline-offset: -2px; }
 /* 整行可点的两种行：键盘走到时焦点框画在行内，不被卡片的圆角裁掉。 */
 .case-row:focus-visible, .module-head:focus-visible, #archived-toggle:focus-visible { outline: 2px solid var(--confirmed); outline-offset: -2px; }
 .case-row h2 { margin: 0; font-size: var(--fs-title); font-weight: 600; overflow-wrap: anywhere; }
@@ -168,12 +179,12 @@ body.win .case-head { padding-left: 8px; }
 }
 .forms button:hover { color: var(--ink); }
 .forms button[aria-pressed="true"] { background: var(--confirmed); color: rgb(var(--card-rgb)); }
-/* 归档与形式按钮同高同字号，不填色：它是一次动作，不是一个选中态。已归档那几行的「恢复」同款（#27）。 */
-#archive, .archived-row button {
+/* 已归档那几行的「恢复」（#27）：与形式按钮同高同字号，不填色——它是一次动作，不是一个选中态。 */
+.archived-row button {
   flex: none; height: 22px; padding: 0 8px; border: 0; border-radius: 7px; background: transparent;
   color: var(--ink-2); font: var(--fs-min)/1 var(--font); cursor: default;
 }
-#archive:hover, .archived-row button:hover { background: var(--hover); color: var(--ink); }
+.archived-row button:hover { background: var(--hover); color: var(--ink); }
 
 /* 模块视：模块行是原生 button，整行可点、可折叠，允许多开。模块行与清单页的案件同款胶囊（#22），
    节点行不做胶囊，挂在它下面。 */

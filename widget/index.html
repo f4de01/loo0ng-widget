@@ -24,8 +24,6 @@
           <button type="button" data-form="module">模块</button>
           <button type="button" data-form="matrix">矩阵</button>
         </div>
-        <!-- 案件归档（#26）：点了回清单页，那案收起；不弹确认。 -->
-        <button id="archive" type="button">归档</button>
       </div>
     </div>
     <p class="banner" id="window-error" role="alert" hidden></p>
@@ -46,6 +44,10 @@
     <!-- 悬浮概览：自绘，不用原生 title。矩阵格上四行；模块视里只补时限全文。 -->
     <div class="pop" id="pop" role="tooltip" hidden></div>
   </div>
+  <!-- 案件归档（#29）：清单页每案右侧一枚盒子形图标，渲染时每行克隆一份；点了那案就地收起，不弹确认。 -->
+  <template id="archive-template">
+    <button class="archive" type="button" aria-label="归档"><svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="2.5" width="12" height="11" rx="2.5"/><path d="M2 6.5h12M6.5 9.5h3"/></svg></button>
+  </template>
   <label id="development" hidden>开发预览：载入扫描结果 <input id="preview" type="file" accept="application/json,.json"></label>
   <script type="module" src="./app.js"></script>
 </body>

@@ -4,6 +4,7 @@ const rootErrors = document.querySelector('#root-errors');
 const archivedFold = document.querySelector('#archived');
 const archivedToggle = document.querySelector('#archived-toggle');
 const archivedRows = document.querySelector('#archived-rows');
+const archiveTemplate = document.querySelector('#archive-template');
 const guide = document.querySelector('#settings-error');
 const banner = document.querySelector('#scan-error');
 const card = document.querySelector('.card');
@@ -136,7 +137,7 @@ function render(data) {
     } else {
       now.append(textElement('span', '—'));
     }
-    article.append(textElement('h2', row.目录名), barline, now);
+    article.append(textElement('h2', row.目录名), barline, now, archiveButton(row.路径));
     rows.append(article);
   }
   // 只画根目录那一类：它是律师自己填的设置。逐案那一类只在扫描输出里，页面不画（ADR-0005）。
@@ -374,24 +375,33 @@ function enterCase(path) {
 
 for (const button of formButtons) button.addEventListener('click', () => switchForm(button.dataset.form));
 
-function leaveCase() {
+document.querySelector('#back').addEventListener('click', () => {
   place = {page: 'list'};
   keep(PLACE, place);
   hidePop();
   showPage(false);
+});
+
+// 行右侧的归档图标（#29）：点它、在它上面按回车或空格，都只归档。点击与按键一律不冒泡到整行，免得整行拿去进案件页。
+function archiveButton(path) {
+  const button = archiveTemplate.content.firstElementChild.cloneNode(true);
+  button.addEventListener('click', event => {
+    event.stopPropagation();
+    archive(path);
+  });
+  button.addEventListener('keydown', event => event.stopPropagation());
+  hoverPop(button, ['归档']);
+  return button;
 }
 
-document.querySelector('#back').addEventListener('click', leaveCase);
-
-// 归档这一案：记下它的路径、回清单页（记住的页随之落回清单页），立刻按新名单重扫，那案不等五秒就消失。
-// 存储不可写时一案都不算归档（#26）：名单存不进去就不改，只回清单页。
-document.querySelector('#archive').addEventListener('click', () => {
-  if (place.page !== 'case') return;
-  const next = archived.includes(place.path) ? archived : [...archived, place.path];
+// 归档一案：记下它的路径、立刻按新名单重扫，那案不等五秒就从清单页收起（#26）。
+// 存储不可写时一案都不算归档：名单存不进去就不改。那一行随重扫消失，指针下的浮层先收掉。
+function archive(path) {
+  const next = archived.includes(path) ? archived : [...archived, path];
   if (keep(ARCHIVED, next)) archived = next;
-  leaveCase();
+  hidePop();
   rescan();
-});
+}
 
 // 恢复一案（#27）：把它的路径从名单里拿掉、立刻重扫；它回到清单页该在的位置、「在办案件 N」加一，都是扫描脚本给的。
 // 与归档一样，名单存不进去就不改。这里改的是本地存储里那份名单，不是扫描来的数据。
