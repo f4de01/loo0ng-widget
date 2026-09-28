@@ -20,10 +20,11 @@ document.body.classList.add(/Mac|iPhone|iPad/.test(navigator.userAgent) ? 'mac' 
 const hostClient = hostState() ? import('./vendor/zebar-3.3.1.js') : null;
 if (hostClient) hostClient.catch(showError);
 
-// 呈现偏好（ADR-0002）：窗口位置（window.js）之外只多这两项，都在 WebView 本地存储里，不碰文件。
-// 启动时记住的总是赢；缺失、无效、不可读就回到清单页、回到模块视。
+// 呈现偏好（ADR-0002 及附注）：窗口位置（window.js）之外只多这三项，都在 WebView 本地存储里，不碰文件。
+// 启动时记住的总是赢；缺失、无效、不可读就回到清单页、回到模块视、一案都不算归档。
 const PLACE = 'loo0ng.place';
 const FORM = 'loo0ng.form';
+const ARCHIVED = 'loo0ng.archived';
 // 案件页的两种形式；表头两枚按钮切换，切换时写下 FORM。
 const VIEWS = {module: moduleView, matrix: matrixView};
 
@@ -36,9 +37,15 @@ function recall(key, valid) {
   }
 }
 
+// 存进去了才回 true。
 function keep(key, value) {
-  try { localStorage.setItem(key, JSON.stringify(value)); }
-  catch { /* 存不进去就只记在这一次里，翻页照常。 */ }
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+    return true;
+  } catch {
+    // 存不进去就只记在这一次里，翻页照常。
+    return false;
+  }
 }
 
 // 停在哪一页哪一案：清单页是 {page: 'list'}，案件页按工作区路径记。
@@ -46,8 +53,11 @@ let place = recall(PLACE, value => value?.page === 'list'
   || (value?.page === 'case' && typeof value.path === 'string' && value.path !== ''))
   ?? {page: 'list'};
 let form = recall(FORM, value => Object.prototype.hasOwnProperty.call(VIEWS, value)) ?? 'module';
+// 已归档的案件：扫描给过的工作区路径，原样记、原样交回扫描脚本，由它少算这几案（#26）。页面不筛、不数。
+let archived = recall(ARCHIVED, value => Array.isArray(value)
+  && value.every(path => typeof path === 'string' && path !== '')) ?? [];
 // 用户动过的模块行：键是「工作区路径 + 模块标题」，值是展开与否。没动过的按模块状态默认。
-// 只活在这一次里，不进本地存储——呈现偏好只有那三样。
+// 只活在这一次里，不进本地存储——呈现偏好只有那四样。
 const toggled = new Map();
 // 最近一轮扫描的输出，与案件页上一次照着画的那一案的 JSON 串（没画任何一案时是空串）。
 let latestScan = null;
@@ -346,11 +356,23 @@ function enterCase(path) {
 
 for (const button of formButtons) button.addEventListener('click', () => switchForm(button.dataset.form));
 
-document.querySelector('#back').addEventListener('click', () => {
+function leaveCase() {
   place = {page: 'list'};
   keep(PLACE, place);
   hidePop();
   showPage(false);
+}
+
+document.querySelector('#back').addEventListener('click', leaveCase);
+
+// 归档这一案：记下它的路径、回清单页（记住的页随之落回清单页），立刻按新名单重扫，那案不等五秒就消失。
+// 存储不可写时一案都不算归档（#26）：名单存不进去就不改，只回清单页。
+document.querySelector('#archive').addEventListener('click', () => {
+  if (place.page !== 'case') return;
+  const next = archived.includes(place.path) ? archived : [...archived, place.path];
+  if (keep(ARCHIVED, next)) archived = next;
+  leaveCase();
+  rescan();
 });
 
 // 启动时回到记住的那一页，不滑：打开卡片就该停在那里，而不是看它从清单页滑过去。
@@ -379,24 +401,40 @@ async function scan() {
   const htmlPath = zebar.currentWidget().htmlPath;
   const script = htmlPath.replace(/[^\\/]+$/, 'scan.py');
   const program = navigator.userAgent.includes('Windows') ? 'python' : 'python3';
-  const result = await zebar.shellExec(program, [script]);
+  const result = await zebar.shellExec(program, [script, ...archived.flatMap(path => ['--归档', path])]);
   if (result.code !== 0) throw new Error(`扫描失败（${result.code}）：${result.stderr}`);
   return JSON.parse(result.stdout);
 }
 
+// 宿主里开始五秒一轮之后才为真；开发预览不轮询，归档后的立刻重扫也跟着不做。
+let polling = false;
 let busy = false;
+// 已归档名单变了：正在扫的那一轮是按旧名单起的，扫完丢掉不画，接着按新名单再扫一轮。
+let stale = false;
 async function poll() {
   if (busy) return;
   busy = true;
   try {
+    let data;
+    do {
+      stale = false;
+      data = await scan();
+    } while (stale);
     // 失败时不动画面：上一轮的内容留着，横幅压在顶上，下一轮成功即消失。
-    render(await scan());
+    render(data);
     banner.hidden = true;
   } catch (error) {
     showError(error);
   } finally {
     busy = false;
   }
+}
+
+// 不等下一个五秒就扫；开发预览不轮询，这里也不扫。
+function rescan() {
+  if (!polling) return;
+  stale = true;
+  poll();
 }
 
 const params = new URLSearchParams(location.search);
@@ -421,6 +459,7 @@ if (params.get('dev') === '1') {
   Promise.all([hostClient, import('./window.js')])
     .then(([zebar, { setupWindow }]) => setupWindow(zebar, windowError))
     .catch(error => windowError(`窗口控件初始化失败：${error}`));
+  polling = true;
   setInterval(poll, 5000);
   poll();
 }

@@ -110,6 +110,22 @@ class PackageTests(unittest.TestCase):
             with self.subTest(file=name):
                 self.assertNotIn("unreadable", (PACKAGE / name).read_text(encoding="utf-8"))
 
+    def test_local_storage_holds_only_the_four_presentation_preferences(self):
+        """硬边界 2 的唯一例外（ADR-0002 及附注）：窗口位置、停在哪一页哪一案、选中的形式、已归档的案件。"""
+        keys = set()
+        for path in PACKAGE.glob("*.js"):
+            keys.update(re.findall(r"""['"](loo0ng\.[^'"]+)['"]""", path.read_text(encoding="utf-8")))
+        self.assertEqual(keys, {"loo0ng.window-position", "loo0ng.place", "loo0ng.form",
+                                "loo0ng.archived"})
+
+    def test_the_page_hands_archived_paths_to_the_scan_and_has_an_archive_button(self):
+        """#26：已归档的路径一个一条 `--归档` 交给扫描脚本，页面不筛不数；表头有「归档」按钮。"""
+        app = (PACKAGE / "app.js").read_text(encoding="utf-8")
+        # 不用 assertIn：它会把整份页面脚本打进失败信息。
+        self.assertTrue("'--归档'" in app, "页面没把已归档的路径交给扫描脚本")
+        page = (PACKAGE / "index.html").read_text(encoding="utf-8")
+        self.assertRegex(page, r'<button id="archive" type="button"[^>]*>归档</button>')
+
     def test_every_color_lives_in_the_root_variable_table(self):
         """ADR-0004：颜色全抽成变量。#22 换冷色调只换 `:root` 那一张表，别处不许散落色值。"""
         css = (PACKAGE / "style.css").read_text(encoding="utf-8")

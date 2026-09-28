@@ -168,6 +168,12 @@ body.win .case-head { padding-left: 8px; }
 }
 .forms button:hover { color: var(--ink); }
 .forms button[aria-pressed="true"] { background: var(--confirmed); color: rgb(var(--card-rgb)); }
+/* 归档与形式按钮同高同字号，不填色：它是一次动作，不是一个选中态。 */
+#archive {
+  flex: none; height: 22px; padding: 0 8px; border: 0; border-radius: 7px; background: transparent;
+  color: var(--ink-2); font: var(--fs-min)/1 var(--font); cursor: default;
+}
+#archive:hover { background: var(--hover); color: var(--ink); }
 
 /* 模块视：模块行是原生 button，整行可点、可折叠，允许多开。模块行与清单页的案件同款胶囊（#22），
    节点行不做胶囊，挂在它下面。 */

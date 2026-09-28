@@ -109,9 +109,11 @@ def case_order(row):
     return tier, locale.strxfrm(row["目录名"]), row["目录名"], row["路径"]
 
 
-def scan(roots, settings):
+def scan(roots, settings, archived):
     scanned = datetime.now().astimezone()
     rows = []
+    # 已归档的案件（#26）：页面把扫描给过的路径原样交回来，按字符串比对，不做规范化。
+    archived = set(archived)
     # 两类读不出分开交（ADR-0005）：根目录是律师自己填的设置，页面照画；逐案的只给开发者看，页面不画。
     root_errors = []
     case_errors = []
@@ -128,7 +130,9 @@ def scan(roots, settings):
                 if not path.is_dir() or not (path / "图视图.json").is_file():
                     continue
                 view = json.loads((path / "图视图.json").read_text(encoding="utf-8"))
-                rows.append(aggregate(path, view, scanned.year))
+                row = aggregate(path, view, scanned.year)
+                if row["路径"] not in archived:
+                    rows.append(row)
             except (OSError, ValueError, KeyError, TypeError) as error:
                 if isinstance(error, json.JSONDecodeError):
                     reason = "机器可读视图不是有效的 JSON"
@@ -176,6 +180,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--设置", type=Path, default=Path.home() / ".loo0ng" / "卡片设置.json")
     parser.add_argument("--根", action="append", default=[])
+    parser.add_argument("--归档", action="append", default=[])
     args = parser.parse_args()
     try:
         locale.setlocale(locale.LC_COLLATE, "zh_CN.UTF-8")
@@ -183,7 +188,7 @@ def main():
         parser.error("系统缺少 zh_CN.UTF-8 中文排序支持，无法按中文序扫描")
     settings = args.设置.expanduser()
     roots, settings_error = (args.根, None) if args.根 else read_settings(settings)
-    data = scan(roots, settings)
+    data = scan(roots, settings, args.归档)
     data["设置错误"] = settings_error
     sys.stdout.reconfigure(encoding="utf-8")
     print(json.dumps(data, ensure_ascii=False))

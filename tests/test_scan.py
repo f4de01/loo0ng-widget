@@ -247,6 +247,44 @@ class ScanTests(unittest.TestCase):
         self.assertEqual([row["目录名"] for row in self.scan("--根", one, "--根", two)["行"]],
                          ["丙", "甲", "乙"])
 
+    def test_archived_cases_leave_the_rows_and_the_count(self):
+        """#26：页面把已归档的路径原样交回来，扫描脚本少算这几案；页面不筛不数。"""
+        甲 = self.case("甲")
+        # 乙有待看、本该排第一：拿掉它之后剩下的仍按原来的次序。
+        乙 = self.case("乙", {**EMPTY, "模块": [{"标题": "甲模块", "状态": "进行中", "节点": [
+            made("甲")]}]})
+        丙 = self.case("丙")
+        data = self.scan("--根", self.root, "--归档", 乙)
+        self.assertEqual([row["路径"] for row in data["行"]], [str(丙), str(甲)])
+        self.assertEqual(data["案件数"], 2)
+        self.assertEqual(data["读不出"], [])
+
+    def test_archived_paths_apply_to_roots_from_settings_too(self):
+        """页面不带 `--根`，根目录来自设置；归档照样生效。"""
+        self.case("甲", root=self.root / "cases")
+        乙 = self.case("乙", root=self.root / "cases")
+        settings = self.root / "settings.json"
+        settings.write_text(json.dumps({"根目录": [str(self.root / "cases")]}), encoding="utf-8")
+        data = self.scan("--设置", settings, "--归档", 乙)
+        self.assertEqual([row["目录名"] for row in data["行"]], ["甲"])
+        self.assertEqual(data["案件数"], 1)
+
+    def test_archiving_a_missing_path_is_silent(self):
+        self.case("甲")
+        data = self.scan("--根", self.root, "--归档", self.root / "missing",
+                         "--归档", self.root / "甲" / "不是案件")
+        self.assertEqual([row["目录名"] for row in data["行"]], ["甲"])
+        self.assertEqual(data["案件数"], 1)
+        self.assertEqual(data["读不出"], [])
+        self.assertEqual(data["根目录读不出"], [])
+
+    def test_archived_paths_match_as_given_without_normalizing(self):
+        """路径按字符串原样比对：页面交回的就是扫描给的那串，别的写法不算同一案。"""
+        甲 = self.case("甲")
+        data = self.scan("--根", self.root, "--归档", str(甲) + os.sep)
+        self.assertEqual([row["目录名"] for row in data["行"]], ["甲"])
+        self.assertEqual(data["案件数"], 1)
+
     def test_empty_and_not_applicable_graphs(self):
         self.case("甲")
         self.case("乙", {**EMPTY, "模块": [{"标题": "结束", "状态": "不适用", "节点": [
