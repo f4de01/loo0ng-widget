@@ -74,11 +74,7 @@ def progress_of(nodes):
 def aggregate(path, view, this_year):
     version = view["格式版本"]
     if type(version) is not int or version != 2:
-        # 1 是工作台早先写过的那一版：图没有升级路径，而这一案多半已经办了一半，
-        # 对它打起手会把归好的东西挪走，所以这一档只说「不接它、照旧办法办」。
-        # 别的不认识的版本仍旧照实报，该做什么这张卡片答不了。
-        if type(version) is int and version == 1:
-            raise ValueError("老格式（格式版本 1）：这一案工作台不接，照原来的办法办，别对它打起手")
+        # 这句只进扫描输出、给开发者看，页面不画逐案读不出（ADR-0005）。
         raise ValueError("机器可读视图的格式版本是 {}，这张卡片只认 2".format(version))
     modules = [module_row(module, this_year) for module in view["模块"]]
     nodes = [node for module in modules for node in module["节点"]]
@@ -116,14 +112,16 @@ def case_order(row):
 def scan(roots, settings):
     scanned = datetime.now().astimezone()
     rows = []
-    errors = []
+    # 两类读不出分开交（ADR-0005）：根目录是律师自己填的设置，页面照画；逐案的只给开发者看，页面不画。
+    root_errors = []
+    case_errors = []
     for root in roots:
         root_path = Path(root).expanduser().absolute()
         try:
             children = list(root_path.iterdir())
         except OSError as error:
             reason = "根目录不存在" if isinstance(error, FileNotFoundError) else "根目录读不出，请检查路径和读取权限"
-            errors.append({"目录名": root_path.name, "路径": str(root_path), "原因": reason})
+            root_errors.append({"目录名": root_path.name, "路径": str(root_path), "原因": reason})
             continue
         for path in children:
             try:
@@ -142,11 +140,11 @@ def scan(roots, settings):
                     reason = str(error)
                 else:
                     reason = "机器可读视图结构不完整或字段类型不正确"
-                errors.append({"目录名": path.name, "路径": str(path), "原因": reason})
+                case_errors.append({"目录名": path.name, "路径": str(path), "原因": reason})
     rows.sort(key=case_order)
     return {"扫描时间": scanned.isoformat(timespec="seconds"),
-            "设置文件": str(settings), "根目录": roots, "行": rows, "读不出": errors,
-            "案件数": len(rows)}
+            "设置文件": str(settings), "根目录": roots, "行": rows, "根目录读不出": root_errors,
+            "读不出": case_errors, "案件数": len(rows)}
 
 
 def read_settings(settings):

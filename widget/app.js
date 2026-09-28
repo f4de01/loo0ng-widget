@@ -1,6 +1,6 @@
 const heading = document.querySelector('#heading');
 const rows = document.querySelector('#rows');
-const unreadable = document.querySelector('#unreadable');
+const rootErrors = document.querySelector('#root-errors');
 const guide = document.querySelector('#settings-error');
 const banner = document.querySelector('#scan-error');
 const card = document.querySelector('.card');
@@ -126,11 +126,12 @@ function render(data) {
     article.append(textElement('h2', row.目录名), barline, now);
     rows.append(article);
   }
-  unreadable.replaceChildren();
-  for (const failure of data.读不出) {
-    const line = textElement('div', '', 'unreadable');
+  // 只画根目录那一类：它是律师自己填的设置。逐案那一类只在扫描输出里，页面不画（ADR-0005）。
+  rootErrors.replaceChildren();
+  for (const failure of data.根目录读不出) {
+    const line = textElement('div', '', 'root-error');
     line.append(textElement('b', failure.目录名), document.createTextNode(`：${failure.原因}`));
-    unreadable.append(line);
+    rootErrors.append(line);
   }
   latestScan = data;
   renderCase();

@@ -99,6 +99,17 @@ class PackageTests(unittest.TestCase):
         self.assertNotIn("扫一次", app)
         self.assertIn("get('dev')", app)
 
+    def test_the_page_draws_only_root_failures(self):
+        """ADR-0005：逐案读不出只在扫描输出里，页面只按 `根目录读不出` 画，那个字段之外不碰「读不出」。"""
+        app = (PACKAGE / "app.js").read_text(encoding="utf-8")
+        # 只守代码，不管注释用词：先剥掉注释再查。
+        app = re.sub(r"//[^\n]*|/\*.*?\*/", "", app, flags=re.S)
+        self.assertIn("data.根目录读不出", app)
+        self.assertNotIn("读不出", app.replace("根目录读不出", ""))
+        for name in ("app.js", "index.html", "style.css"):
+            with self.subTest(file=name):
+                self.assertNotIn("unreadable", (PACKAGE / name).read_text(encoding="utf-8"))
+
     def test_every_color_lives_in_the_root_variable_table(self):
         """ADR-0004：颜色全抽成变量。#22 换冷色调只换 `:root` 那一张表，别处不许散落色值。"""
         css = (PACKAGE / "style.css").read_text(encoding="utf-8")

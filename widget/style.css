@@ -289,13 +289,14 @@ body.win .case-head { padding-left: 8px; }
   box-shadow: var(--pop-shadow), 0 0 0 1px var(--edge); overflow-wrap: anywhere;
 }
 
-/* 错误只在发生时现身。读不出：排在案件之后的暗色行，只写目录名与原因；形与案件胶囊一样，底是暗的。 */
-.unreadable {
+/* 错误只在发生时现身。根目录读不出：排在案件之后的暗色行，只写目录名与原因；形与案件胶囊一样，底是暗的。
+   逐案的读不出不上页面（ADR-0005）。 */
+.root-error {
   margin: var(--capsule-gap) calc(var(--capsule-pad) * -1) 0; padding: 8px var(--capsule-pad);
   border-radius: var(--capsule-radius); background: var(--hover); color: var(--ink-3);
   font-size: var(--fs-secondary); overflow-wrap: anywhere;
 }
-.unreadable b { color: var(--ink-2); font-weight: 500; }
+.root-error b { color: var(--ink-2); font-weight: 500; }
 /* 一轮扫描失败：顶部一条横幅，下一轮成功即消失，中间的画面留着。
    设置没填好：整页只剩那段可照做的指引。两样同一种底。 */
 .banner, .guide {

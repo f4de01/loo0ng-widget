@@ -342,16 +342,24 @@ class ScanTests(unittest.TestCase):
         self.assertIn("只认 2", errors["乙"])
         self.assertIn("JSON", errors["丙"])
 
-    def test_format_version_one_says_what_the_lawyer_can_do(self):
-        """老格式那一档要给出可照做的话，而且不能教他去打起手：那会把已经归好的东西挪走。"""
+    def test_per_case_failures_stay_in_the_output_apart_from_root_failures(self):
+        """ADR-0005：逐案读不出只进扫描输出、页面不画，根目录那一类页面照画，所以两类由扫描脚本分开交。
+        格式版本 1 与别的不认识的版本一样照实报「只认 2」，#10 那句写给律师的话收回。"""
         self.case("甲")
-        self.case("乙", {**EMPTY, "格式版本": 1})
+        old = self.case("乙", {**EMPTY, "格式版本": 1})
+        broken = self.case("丙")
+        (broken / "图视图.json").write_text("{", encoding="utf-8")
         data = self.scan("--根", self.root)
         self.assertEqual([row["目录名"] for row in data["行"]], ["甲"])
-        reason = {row["目录名"]: row["原因"] for row in data["读不出"]}["乙"]
-        self.assertIn("1", reason)
-        self.assertIn("别对它打起手", reason)
-        self.assertNotIn("只认 2", reason)
+        self.assertEqual(data["案件数"], 1)
+        self.assertEqual(data["根目录读不出"], [])
+        failures = {row["目录名"]: row for row in data["读不出"]}
+        self.assertEqual(sorted(failures), sorted(["乙", "丙"]))
+        self.assertEqual(failures["乙"], {"目录名": "乙", "路径": str(old),
+                                         "原因": "机器可读视图的格式版本是 1，这张卡片只认 2"})
+        self.assertEqual(failures["丙"]["路径"], str(broken))
+        self.assertIn("JSON", failures["丙"]["原因"])
+        self.assertNotIn("打起手", json.dumps(data, ensure_ascii=False))
 
     def test_counts_are_ready_for_rendering(self):
         self.case("甲", {**EMPTY, "模块": [{"标题": "甲模块", "状态": "进行中", "节点": [
@@ -369,8 +377,9 @@ class ScanTests(unittest.TestCase):
         missing = self.root / "missing"
         data = self.scan("--根", missing, "--根", self.root)
         self.assertEqual([row["目录名"] for row in data["行"]], ["甲"])
-        self.assertEqual(data["读不出"], [{"目录名": "missing", "路径": str(missing),
-                                         "原因": "根目录不存在"}])
+        self.assertEqual(data["根目录读不出"], [{"目录名": "missing", "路径": str(missing),
+                                             "原因": "根目录不存在"}])
+        self.assertEqual(data["读不出"], [])
 
     def test_unreadable_view_does_not_hide_other_cases(self):
         self.case("甲")
@@ -420,6 +429,7 @@ class ScanTests(unittest.TestCase):
         self.assertIn('{"根目录": ["绝对路径"]}', data["设置错误"]["原因"])
         self.assertEqual(data["行"], [])
         self.assertEqual(data["读不出"], [])
+        self.assertEqual(data["根目录读不出"], [])
         self.assertEqual(data["案件数"], 0)
 
     def test_invalid_settings_give_distinct_repair_instructions(self):
@@ -436,6 +446,7 @@ class ScanTests(unittest.TestCase):
                 self.assertIn('{"根目录": ["绝对路径"]}', data["设置错误"]["原因"])
                 self.assertEqual(data["行"], [])
                 self.assertEqual(data["读不出"], [])
+                self.assertEqual(data["根目录读不出"], [])
 
     def test_nested_objects_in_display_fields_cannot_leak_entries(self):
         self.case("甲", {**EMPTY, "生成时间": {"条目": [1]}})
