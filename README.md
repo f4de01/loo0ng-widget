@@ -71,7 +71,19 @@ mac 示例：
 
 三个入口都落到包里同一条命令（`launch.py`）：宿主没开就连宿主一起拉起，卡片**已经开着（含最小化）时什么都不发生**——不聚焦、不还原、不多开一扇。最小化了要从 Windows 任务栏 / mac 程序坞还原，这条命令做不到（[ADR-0001](docs/adr/0001-唤起走宿主cli-语义只是没开就开-命令归本仓库-skill侧另立adr.md)）。
 
-**一、随宿主启动。** 勾一次就行，推荐先做这个：右键托盘里的 Zebar 图标 → `Widget packs` → `loo0ng` → `案件卡片` → 勾上 `Run on startup`。以后登录即在，下面两条留给「关过了想立刻开回来」。
+**一、随宿主启动。** 跑一次就行，推荐先做这个：它把 Zebar 启动时打开的东西改成只有案件卡片，以后登录即在，Zebar 自带的那条顶栏（日期、CPU、电量）也不再出现；Zebar 里原先设的别的启动项会一并去掉。先退出 Zebar（右键托盘里的 Zebar 图标 → `Exit`），再整行粘贴，跑完重新打开 Zebar。下面两条留给「关过了想立刻开回来」。
+
+Windows：打开 **PowerShell**，整行粘贴：
+
+```powershell
+& { $ErrorActionPreference = 'Stop'; if (Get-Process zebar -ErrorAction SilentlyContinue) { throw 'Zebar is running; exit it from the tray first.' }; $file = Join-Path $env:USERPROFILE '.glzr/zebar/settings.json'; New-Item -ItemType Directory -Force -Path (Split-Path $file) | Out-Null; [IO.File]::WriteAllText($file, '{"$schema": "https://github.com/glzr-io/zebar/raw/v3.3.1/resources/settings-schema.json", "startupConfigs": [{"pack": "loo0ng", "widget": "\u6848\u4ef6\u5361\u7247", "preset": "\u9ed8\u8ba4"}]}', [Text.UTF8Encoding]::new($false)); Write-Output "Written: $file" }
+```
+
+mac：打开**终端**，整行粘贴（此命令尚未在 mac 验收）：
+
+```sh
+( set -eu; if pgrep -x zebar >/dev/null; then printf '%s\n' 'Zebar is running; quit it first.' >&2; exit 1; fi; file="$HOME/.glzr/zebar/settings.json"; mkdir -p "$(dirname "$file")"; printf '%s\n' '{"$schema": "https://github.com/glzr-io/zebar/raw/v3.3.1/resources/settings-schema.json", "startupConfigs": [{"pack": "loo0ng", "widget": "\u6848\u4ef6\u5361\u7247", "preset": "\u9ed8\u8ba4"}]}' > "$file"; printf 'Written: %s\n' "$file" )
+```
 
 **二、桌面快捷方式。** 装好组件包之后跑一次，桌面上就多一个「打开案件卡片」。
 
@@ -99,7 +111,7 @@ Windows 上 agent 认不出 `~` 就把路径写成 `%USERPROFILE%\.glzr\zebar\lo
 
 没装 Zebar 时脚本只说一句「没找到 Zebar：先去 https://github.com/glzr-io/zebar 装一个，再跑这条命令。」并以非零码退出，不刷一串错误；桌面快捷方式走的是不带控制台的 `pythonw`，那里这句话改用一个提示框说。
 
-**Zebar 当时没在跑，这条命令会自己变成宿主进程**：卡片照样出来，但命令要等 Zebar 退出才返回。三个入口各受什么影响：桌面快捷方式在 Windows 上没有窗口，只是多一个后台 `pythonw` 陪着 Zebar，不碍事；**mac 的 `.command` 会让那扇终端窗口一直开着，关掉它会把 Zebar 一起关掉**（这一条尚未在 mac 实机验过）；agent 那一句若因此卡住，让它把命令放到后台再继续。勾了上面第一条「Run on startup」，平时就碰不到这种情形。
+**Zebar 当时没在跑，这条命令会自己变成宿主进程**：卡片照样出来，但命令要等 Zebar 退出才返回。三个入口各受什么影响：桌面快捷方式在 Windows 上没有窗口，只是多一个后台 `pythonw` 陪着 Zebar，不碍事；**mac 的 `.command` 会让那扇终端窗口一直开着，关掉它会把 Zebar 一起关掉**（这一条尚未在 mac 实机验过）；agent 那一句若因此卡住，让它把命令放到后台再继续。跑过上面第一条，平时就碰不到这种情形。
 
 ## 案件数据
 
