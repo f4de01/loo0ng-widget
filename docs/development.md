@@ -50,6 +50,16 @@ New-Item -ItemType Directory -Force .scratch | Out-Null
 
 客户端固定为 `zebar@3.3.1`，通过 `vendor/zebar-3.3.1.js` 本地导入；完整浏览器依赖、来源哈希和许可证均随包提供，`vendor/**` 纳入资源白名单。升级步骤见 [随包客户端](../widget/vendor/README.md)。一条命令安装属于 #6，窗口控件与拖动属于 #7，最终人手验收属于 #8。
 
+## #32 Windows 上 `python` 指向商店占位时退到 `py`
+
+Windows 上 `python` 这个名字不一定是解释器：Python 安装管理器（pymanager）把解释器放在 `%LOCALAPPDATA%\Python\bin`，而用户 PATH 里微软商店的 0 字节占位 `python.exe` 常排在它前面，只打印「Python was not found」并以 9009 退出。页面现在先调 `python`，拿到 9009 或根本起不来就退到 Python 启动器 `py`（python.org 安装与 pymanager 都带）；`zpack.json` 的 `shellCommands` 补上 `py`，包测试守住「页面点名的程序都在白名单里、每条都只许跑扫描脚本」。mac 仍只有 `python3`。页面只选程序名，不碰数据。
+
+排障时先在 PowerShell 里看 `(Get-Command python).Source`：落在 `WindowsApps` 下就是占位。根治是在系统设置「应用执行别名」里关掉「应用安装程序」的 `python.exe`、`python3.exe`，或把 `%LOCALAPPDATA%\Python\bin` 挪到用户 PATH 里 `WindowsApps` 之前。
+
+**另一条排障记录（包不改）**：卡片窗口里若是宿主回的 404 页，先 `Get-Process zebar` 看是不是两个实例并存。2026-10-11 撞到过一次：另一个 agent 在自己的运行时里用 `start-widget-preset` 冷启了宿主并持有 6124 端口，之后从开始菜单又起了一个，后者拿到卡片窗口却向前者的资源服务器要页面。全部结束、只起一个即恢复。直接用 `start-widget-preset` 冷启再起一个普通实例复现不出来，宿主自己的单实例守得住。
+
+**验证（Windows）**：包测试先红后绿。装进宿主、清 `loo0ng` 的 WebView 缓存后，在 `python` 解析到商店占位的 PATH 下起 Zebar，卡片出数、没有扫描横幅；见下文验收记录。
+
 ## #30 Zebar 只作宿主：启动项只留案件卡片
 
 裁定在 ADR-0006。README「随宿主启动」那一条从托盘里勾 `Run on startup` 换成整行粘贴的命令：Zebar 在跑就拒绝并说先退出；否则把 `~/.glzr/zebar/settings.json` 整份写成 `startupConfigs` 只有 `loo0ng / 案件卡片 / 默认` 一项，Zebar 首次启动写进去的起步组件（`glzr-io.starter` 的 `vanilla`，那条顶栏）随之不再出现。命令只含 ASCII，组件名与预设名写成 JSON 的 `\u` 转义。卡片本身不写这个文件，唤起脚本也不写。

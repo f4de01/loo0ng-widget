@@ -4,7 +4,7 @@
 
 它是一个 [Zebar](https://github.com/glzr-io/zebar) 组件包，不是独立应用，也不是 Claude Code 插件。窗口、拖动、置顶、多显示器、托盘常驻、安装与更新都由 Zebar 负责；这个仓库里只有组件包本身。
 
-状态：Windows 上首版（#8）与呈现定形（#20）两轮人手验收都已通过，矩阵视重做（#24，0.2.0）律师在宿主里看过，案件归档与 Zebar 只作宿主（#28，0.3.0）验收通过；Python 3.9 全套测试通过。逐项证据见 [验收记录](docs/acceptance-windows.md)。mac 实机验收另进交付票。
+状态：Windows 上首版（#8）与呈现定形（#20）两轮人手验收都已通过，矩阵视重做（#24，0.2.0）律师在宿主里看过，案件归档与 Zebar 只作宿主（#28，0.3.0）验收通过，0.3.1 修了 Windows 上 `python` 指向商店占位时扫不出数（#32）；Python 3.9 全套测试通过。逐项证据见 [验收记录](docs/acceptance-windows.md)。mac 实机验收另进交付票。
 
 ## 它读什么
 
@@ -17,7 +17,7 @@
 
 ## 装法
 
-先装好 Zebar 和 Python 3.9 以上；Windows 的 `python`、mac 的 `python3` 须能在终端运行。以下命令从公开仓库的 `main` 下载完整组件包，无需 Git 或 GitHub 登录；安装时需要联网，运行时无需外网。
+先装好 Zebar 和 Python 3.9 以上；Windows 的 `python` 或 `py`、mac 的 `python3` 须能在终端运行。以下命令从公开仓库的 `main` 下载完整组件包，无需 Git 或 GitHub 登录；安装时需要联网，运行时无需外网。
 
 Windows：打开 **PowerShell**，整行粘贴：
 

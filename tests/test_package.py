@@ -142,6 +142,20 @@ class PackageTests(unittest.TestCase):
         page = (PACKAGE / "index.html").read_text(encoding="utf-8")
         self.assertRegex(page, r'<button id="archived-toggle" type="button"[^>]*aria-expanded="false"')
 
+    def test_every_program_the_page_names_is_allowed_to_run_the_scan(self):
+        """#32：页面点名的程序（Windows 先 `python` 再退到 `py`，mac `python3`）都得在 shellCommands 里，
+        且每条都只许跑扫描脚本；少一个，宿主拒绝执行，卡片只剩一条报错横幅。"""
+        app = (PACKAGE / "app.js").read_text(encoding="utf-8")
+        named = re.search(r"const PROGRAMS = [^\n]*\?\s*\[([^\]]*)\]\s*:\s*\[([^\]]*)\]", app)
+        self.assertIsNotNone(named, "页面里没有 PROGRAMS 那张程序名表")
+        programs = set(re.findall(r"'([^']+)'", named.group(1) + named.group(2)))
+        self.assertEqual(programs, {"python", "py", "python3"})
+        allowed = {entry["program"] for entry in WIDGET["privileges"]["shellCommands"]}
+        self.assertEqual(allowed, programs)
+        for entry in WIDGET["privileges"]["shellCommands"]:
+            with self.subTest(program=entry["program"]):
+                self.assertEqual(entry["argsRegex"], r".*scan\.py.*")
+
     def test_every_color_lives_in_the_root_variable_table(self):
         """ADR-0004：颜色全抽成变量。#22 换冷色调只换 `:root` 那一张表，别处不许散落色值。"""
         css = (PACKAGE / "style.css").read_text(encoding="utf-8")

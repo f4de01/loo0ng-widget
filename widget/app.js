@@ -439,12 +439,25 @@ function hostState() {
   }
 }
 
+// 扫描脚本用哪个程序名跑（#32）：Windows 上先 `python`，它可能是微软商店的 0 字节占位
+// （只打印「Python was not found」，退出码 9009）或根本不在 PATH 上，那时退到 Python 启动器 `py`；
+// mac 只有 `python3`。这里只选程序名，不碰数据。
+const PROGRAMS = navigator.userAgent.includes('Windows') ? ['python', 'py'] : ['python3'];
+const NOT_FOUND = 9009;
+
+async function runScan(zebar, args) {
+  const [first, fallback] = PROGRAMS;
+  const result = await zebar.shellExec(first, args)
+    .catch(error => ({code: NOT_FOUND, stdout: '', stderr: String(error)}));
+  if (fallback && result.code === NOT_FOUND) return zebar.shellExec(fallback, args);
+  return result;
+}
+
 async function scan() {
   const zebar = await hostClient;
   const htmlPath = zebar.currentWidget().htmlPath;
   const script = htmlPath.replace(/[^\\/]+$/, 'scan.py');
-  const program = navigator.userAgent.includes('Windows') ? 'python' : 'python3';
-  const result = await zebar.shellExec(program, [script, ...archived.flatMap(path => ['--归档', path])]);
+  const result = await runScan(zebar, [script, ...archived.flatMap(path => ['--归档', path])]);
   if (result.code !== 0) throw new Error(`扫描失败（${result.code}）：${result.stderr}`);
   return JSON.parse(result.stdout);
 }
