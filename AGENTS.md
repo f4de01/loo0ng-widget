@@ -1,6 +1,6 @@
 # loo0ng-widget
 
-常驻律师桌面的一张卡片，同时看住在办的多个破产案件。它是一个 Zebar 组件包，不是独立应用，也不是 Claude Code 插件。裁定在 loo0ng-skills 的 `docs/adr/0029-*.md`（含 2026-09-16 附注）；这个仓库的规格与票在 GitHub Issues 上。
+常驻律师桌面的一张卡片，同时看住在办的多个案件。它是一个 Zebar 组件包，不是独立应用，也不是 Claude Code 插件。裁定在 loo0ng-skills 的 `docs/adr/0029-*.md`（含 2026-09-16 附注）；这个仓库的规格与票在 GitHub Issues 上。
 
 ## 硬边界（不上桌）
 
