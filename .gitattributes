@@ -1,2 +1,4 @@
 # Preserve vendored bytes so manifest SHA-256 values survive Windows checkouts.
 widget/vendor/*.js -text
+# 安装脚本要原样的 LF，Windows 检出也不能换成 CRLF，否则 mac 上 sh 跑不了。
+install.sh text eol=lf

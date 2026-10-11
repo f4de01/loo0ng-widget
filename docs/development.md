@@ -27,7 +27,7 @@ python widget/scan.py --设置 <设置文件>
 
 ## 页面与宿主
 
-发布版按 [README](../README.md#装法) 的一条命令安装；本地开发则把 `widget/` 的内容装到 `~/.glzr/zebar/loo0ng/`，通过 Zebar 的「案件卡片 / 默认」打开。已有安装先备份到 Zebar 目录外。
+发布版按 [README](../README.md#安装) 的一条命令安装，命令取到的是仓库根的安装脚本（`install.ps1` / `install.sh`，ADR-0007，见下面的 #33 一节）；本地开发则把 `widget/` 的内容装到 `~/.glzr/zebar/loo0ng/`，通过 Zebar 的「案件卡片 / 默认」打开，或把 `LOO0NG_SOURCE` 指向一份从工作树打出来的 zip 让脚本装。已有安装先备份到 Zebar 目录外。
 
 `zpack.json` 的 `includeFiles` 是资源服务器的白名单，不是附带清单。`htmlPath` 指向的文件未被覆盖时，宿主直接回 500。新增资源必须同时加入白名单：当前 `*.html`、`*.css`、`*.js`、`*.py` 覆盖包入口，`vendor/**` 覆盖完整依赖、manifest、说明和许可证。`zpack.json` 是宿主读取的包描述，不是页面请求的资源；安装时仍必须复制它。不要把本机生成的 `__pycache__/` 拷进包里。
 
@@ -372,6 +372,24 @@ Windows 控件在右上角，关闭悬停为红色；mac 用同一段 HTML 在�
 - 2026-09-17，用户进一步确认此前三项人手操作均通过（拖动；失焦后点击最小化并从任务栏恢复；关闭不影响宿主和其他组件、重开回到保存位置）。当前宿主实测 `devicePixelRatio = 1.5`，覆盖非 100% 缩放的拖动验收。
 - 补验清缓存：退出宿主后将专用验收缓存移至备份，以相同缓存路径空目录启动；实际 `localStorage` 位置键为 `null`，窗口物理位置为 `(1906, 36)`，尺寸 `690 × 630`，对应本机 150% 缩放下的预设位置与尺寸。控件正常启用、无窗口初始化错误。随后恢复已有位置缓存，原设置按字节哈希核对恢复，撤下临时诊断端口；新版组件保留。
 - #7 的 Windows 验收完成。用户明确提出拖拽区域需要重新设计，并决定在后续 UI 设计和功能设计阶段处理；该设计项保留为后续工作，不在本轮调整拖拽区域。
+
+## 安装脚本（#33）
+
+裁定在 ADR-0007。仓库根的 `install.ps1`（Windows）与 `install.sh`（mac）各对应 README 上一条命令；脚本不在包里、不进 `includeFiles`。一次做完：前提检查（Python 3.9 以上、Zebar）、下载并装包或原地更新、设置文件不存在时问一次案件根目录、按 ADR-0006 写 Zebar 启动项、可选桌面快捷方式、装完打开 Zebar。更新只删这个包 WebView 缓存里的 `Cache` 与 `Code Cache`（#32 验收时验过这样够），`Local Storage` 留着，呈现偏好不丢。
+
+**可测的缝**是环境变量：`LOO0NG_HOME`（当作用户目录；Windows 上缓存与桌面也按它下面找）、`LOO0NG_SOURCE`（zip 的 URL 或本地路径）、`LOO0NG_ZEBAR`（宿主可执行文件）、`LOO0NG_HOST=0`（不退出、不打开 Zebar）、`LOO0NG_ROOT`（`;` 分隔，设了就不问）、`LOO0NG_SHORTCUT`（1/0，没设就问）。`tests/test_install.py` 真起子进程跑两份脚本：用户目录是临时目录，包来源是测试从工作树打出来的 zip，宿主是临时目录里一个空文件，PATH 前面垫一个指向跑测试解释器的 `python.cmd` / `python3`。十一条：新装（包逐字节等于 `widget/`、设置文件按 README 的约定写成 `/`、启动项字节与 ADR-0006 一致、快捷方式存在）、更新（旧包换掉、已有设置一字不动、`Cache` 与 `Code Cache` 删了而 `Local Storage` 还在）、没给根目录（装上、不写设置、输出里有设置路径）、归档里没有组件包（退非零、现有包不动、什么都不写）、缺宿主（退 1、说去哪装、不装）、以及 Windows 独有的「`python` 是商店占位（stderr 一句 + 9009）时退到 `py`」。**测试一次都不许碰本机真装的 Zebar。** Windows 上 Git Bash 带 sh、unzip、find，所以 `install.sh` 那组在 Windows 上也跑；mac 实机仍留给交付票。
+
+**两个坑，都写进了脚本头与 ADR-0007**：
+
+- `install.ps1` 不带 BOM，主体包在函数里、失败只 `return`、结果在 `$ok`。`irm` 按 `charset=utf-8` 解码，带 BOM 会让 `iex` 把 `﻿#` 当成一个命令报错；`iex` 里的 `exit` 会关掉律师的 PowerShell 窗口。所以本地别用 `-File` 跑它（5.1 按 ANSI 读、汉字全坏），要像律师那样：
+
+  ```powershell
+  powershell -NoProfile -Command "iex (Get-Content -Raw -Encoding UTF8 install.ps1); if (-not $ok) { exit 1 }"
+  ```
+
+- 探测 Python 时 `$ErrorActionPreference = 'Stop'` 要临时放宽：商店占位往 stderr 写一句，Stop 模式下那一句就是终止性错误，整个脚本在这里死掉。先放宽、`2>&1` 只留字符串、看 `$LASTEXITCODE`，再恢复。
+
+验证（2026-10-11，Windows，机器跑，不是人手）：本地起一个按 raw.githubusercontent.com 的头（`text/plain; charset=utf-8`）回脚本的服务器，用真实 PATH（`python` 是商店占位）走 `irm … | iex`：缺宿主时只打一句、窗口还在、`$ok=False`；完整一遍装到临时用户目录，8 个顶层条目、设置文件 `{"根目录": ["D:/案件"]}`、快捷方式指向 pymanager 的 `pythonw.exe` 并带 `launch.py`。Python 3.9.25 与 3.14.2 全套 69 条通过。README 的三张截图是 `.scratch/` 里的页面副本加一段截图驱动、喂合成根（甲乙丙三案）的扫描输出，用无头 Edge 截的；驱动不提交，截图在 `docs/images/`，不在包里。
 
 ## #6 安装与说明验证记录
 
